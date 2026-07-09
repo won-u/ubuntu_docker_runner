@@ -1,0 +1,50 @@
+# === OS / 데스크톱 생성 파일 ===
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+*~
+
+# === 에디터 / IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.orig
+
+# === 빌드 산출물 / 다운로드 (컨테이너 결과물이 저장소로 새어드는 것 방지) ===
+# input_leap 빌드 결과 (기본은 ~/Desktop이나, 상대 경로로 생성될 경우 대비)
+output/
+build/
+*_Build/
+InputLeap_Build/
+source_code/
+
+# 카카오톡/앱 설치 파일 등 임시 다운로드 산출물
+*.exe
+*.deb
+*.AppImage
+
+# === 로그 / 임시 파일 ===
+*.log
+*.tmp
+*.pid
+tmp/
+
+# === 사용자 데이터 폴더 (실수로 저장소 안에 생성될 경우 대비) ===
+.*_docker/
+.wine/
+.mozilla/
+
+# === 비밀정보 (커밋 금지) ===
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# === Claude Code 로컬 설정 (스킬은 커밋, 로컬/임시 설정은 제외) ===
+.claude/settings.local.json
+.claude/*.tmp.*
