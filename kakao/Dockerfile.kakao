@@ -1,0 +1,35 @@
+# 1. 안정성이 완벽하게 검증된 Ubuntu 24.04 LTS 베이스 사용
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 통신 파이프라인 패치 (다운로드 끊김 방지)
+RUN echo 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99custom && \
+    echo 'Acquire::http::No-Cache "true";' >> /etc/apt/apt.conf.d/99custom && \
+    echo 'Acquire::BrokenProxy="true";' >> /etc/apt/apt.conf.d/99custom
+
+# 2. 필수 도구 설치 및 WineHQ 공식 인증서/저장소 세팅
+RUN apt-get update && apt-get install -y wget gnupg2 software-properties-common locales sudo unzip fonts-nanum && \
+    dpkg --add-architecture i386 && \
+    mkdir -pm755 /etc/apt/keyrings && \
+    wget -qO - https://dl.winehq.org/wine-builds/winehq.key | gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key && \
+    wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
+
+# 3. 우분투 기본 Wine이 아닌 '공식 순정 Wine (winehq-stable)' 설치
+RUN apt-get update && apt-get install -y --install-recommends winehq-stable && apt-get clean
+
+# 4. 완벽한 한글 환경(로캘) 설정
+RUN locale-gen ko_KR.UTF-8
+ENV LANG=ko_KR.UTF-8
+ENV LANGUAGE=ko_KR:ko
+ENV LC_ALL=ko_KR.UTF-8
+
+# 5. 기존 ubuntu(1000) 계정 권한 맞춤
+ARG USERNAME=ubuntu
+RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && mkdir -p /home/$USERNAME \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME
+
+USER $USERNAME
+ENV HOME=/home/$USERNAME
