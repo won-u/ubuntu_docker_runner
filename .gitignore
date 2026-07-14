@@ -43,7 +43,12 @@ tmp/
 .env.*
 *.key
 *.pem
+*.crt
 secrets/
+
+# === 서드파티 벤더/설치본 (이 저장소 목적과 무관, 대용량·자격증명 포함) ===
+harbor/
+*.tgz
 
 # === Claude Code 로컬 설정 (스킬은 커밋, 로컬/임시 설정은 제외) ===
 .claude/settings.local.json
