@@ -35,7 +35,7 @@ RUN install -d -m 0755 /etc/apt/keyrings \
     && echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | tee -a /etc/apt/sources.list.d/mozilla.list > /dev/null
 
 # 6. Snap 패키지 대신 Mozilla 저장소를 최우선으로 쓰도록 설정
-RUN echo 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000' | tee /etc/apt/preferences.d/mozilla
+RUN printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' > /etc/apt/preferences.d/mozilla
 
 # 7. 진짜 Firefox 및 한글 언어팩 설치
 RUN apt-get update && apt-get install -y firefox firefox-l10n-ko \

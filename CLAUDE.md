@@ -12,15 +12,17 @@
 
 ```
 docker_files/
-├── README.md              # 사용자용 문서
-├── CLAUDE.md              # 이 파일
-├── firefox/               # GUI 실행형: 컨테이너화된 Firefox
+├── README.md               # 사용자용 문서
+├── CLAUDE.md               # 이 파일
+├── lib/
+│   └── common.sh           # 실행 스크립트 공통 헬퍼(검증/배선/자동빌드)
+├── firefox/                # GUI 실행형: 컨테이너화된 Firefox
 │   ├── Dockerfile
 │   └── run-firefox.sh
-├── kakao/                 # GUI 실행형: Wine 위 카카오톡
+├── kakao/                  # GUI 실행형: Wine 위 카카오톡
 │   ├── Dockerfile.kakao
 │   └── run-kakao.sh
-└── input_leaf/            # 빌드형: Input Leap 소스 컴파일 → 바이너리 추출
+└── input_leaf/             # 빌드형: Input Leap 소스 컴파일 → 바이너리 추출
     ├── Dockerfile.builder
     └── build-input-leap.sh
 ```
@@ -31,19 +33,21 @@ docker_files/
 
 ## 명령어 (빌드 & 실행)
 
-> 주의: 실행 스크립트는 이미지가 **미리 빌드되어 있다고 가정**합니다(태그명 하드코딩). 스크립트 자체는 이미지를 빌드하지 않으므로, GUI 실행형은 먼저 `docker build`를 수행해야 합니다.
+> 참고: GUI 실행 스크립트는 이제 이미지가 없으면 **`lib/common.sh`의 `ensure_image`가 자동으로 `docker build`** 를 수행합니다. 수동 빌드도 가능합니다.
 
 ```bash
-# firefox
-cd firefox && docker build -t firefox-ubuntu:latest .
-./run-firefox.sh [firefox 옵션]
+# firefox (이미지 없으면 스크립트가 자동 빌드)
+./firefox/run-firefox.sh [firefox 옵션]
 
-# kakao
-cd kakao && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
-./run-kakao.sh
+# kakao (이미지 없으면 스크립트가 자동 빌드)
+./kakao/run-kakao.sh
 
 # input_leaf (빌드+추출을 스크립트가 모두 수행)
-cd input_leaf && ./build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
+./input_leaf/build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
+
+# 수동 빌드가 필요하면:
+cd firefox && docker build -t firefox-ubuntu:latest .
+cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 ```
 
 | 프로젝트 | 이미지 태그 | 컨테이너 이름 | 호스트 데이터 경로 |
@@ -64,12 +68,13 @@ cd input_leaf && ./build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
 6. `USER ubuntu` + `ENV HOME=/home/ubuntu`
 
 ### 실행 스크립트 공통 패턴
-`run-*.sh`는 다음을 수행합니다.
-1. `xhost +local:docker` 로 컨테이너의 X 서버 접근 허용
-2. `USER_UID`, `HOST_DBUS_PATH`, `XAUTH`, `IBUS_SOCKET_PATH` 등 호스트 리소스 경로 계산
-3. 데이터용 호스트 폴더 생성 및 권한 개방
-4. 기존 컨테이너 정리(`docker rm -f`) 후 `docker run` — 마지막에 `exec`를 써서 호스트가 프로세스를 추적 가능하게 함
-5. `--rm`으로 종료 시 컨테이너 자동 삭제 (데이터는 볼륨에 남음)
+`run-*.sh`는 공통 로직을 [`lib/common.sh`](./lib/common.sh)에 위임하며, 다음 순서를 따릅니다.
+1. `set -euo pipefail` 후 `lib/common.sh` 를 source
+2. `require_docker` / `require_x11` 로 전제 조건 검증(docker 데몬, DISPLAY 등)
+3. `resolve_host_paths` 로 USER_UID/HOST_DBUS_PATH/IBUS_SOCKET_PATH/XAUTH 계산, `allow_x_access`(xhost +local:docker)
+4. `ensure_image`로 이미지 없으면 자동 빌드, `remove_stale_container`로 찌꺼기 정리
+5. `wire_data`/`wire_display`/`wire_audio`/`wire_ime`/`wire_gpu`/`wire_locale` 로 **소켓이 존재할 때만 조건부 마운트** 배열(`DOCKER_MOUNTS`/`DOCKER_ENVS`/`DOCKER_DEVICES`)에 누적
+6. 마지막에 `exec docker run ... --rm` — 배열을 전개하고 종료 시 컨테이너 자동 삭제(데이터는 볼륨에 남음)
 
 ### 컨테이너에 전달하는 리소스 (배선 규칙)
 | 리소스 | 플래그 |
@@ -97,8 +102,8 @@ cd input_leaf && ./build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
 
 ## 새 앱 추가 절차 (Claude용 체크리스트)
 1. `<앱>/` 디렉토리와 `Dockerfile` 생성 — 위 [Dockerfile 공통 패턴] 골격 사용, 기존 파일에서 `ubuntu` 계정 블록을 복사.
-2. `run-<앱>.sh` 생성 — 가장 유사한 기존 스크립트(`run-firefox.sh` 또는 `run-kakao.sh`)를 복제 후 조정.
-3. [배선 규칙] 표에서 **해당 앱이 실제로 필요로 하는 리소스만** 선택(예: 오디오 불필요하면 pulse/snd 제외).
+2. `run-<앱>.sh` 생성 — 가장 유사한 기존 스크립트(`run-firefox.sh` 또는 `run-kakao.sh`)를 복제 후 조정. **배선은 `lib/common.sh`의 `wire_*` 헬퍼를 재사용**하고, 새 배선 로직이 공통이면 `common.sh`에 함수를 추가.
+3. [배선 규칙] 표에서 **해당 앱이 실제로 필요로 하는 리소스의 `wire_*`만 호출**(예: 오디오 불필요하면 `wire_audio` 제외).
 4. 네이밍 규칙 준수 확인.
 5. `chmod +x run-<앱>.sh`.
 6. README.md의 "프로젝트 구성"에 항목 추가.

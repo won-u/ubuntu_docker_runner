@@ -1,61 +1,59 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# run-firefox.sh — 컨테이너화된 Firefox 실행
+#   ./run-firefox.sh                 # 브라우저 실행 (없으면 이미지 자동 빌드)
+#   ./run-firefox.sh --new-window    # 이미 실행 중이면 새 창만 추가
+#
+set -euo pipefail
 
-# 호스트의 X 서버 접근 허용
-xhost +local:docker > /dev/null 2>&1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
 
-USER_UID=$(id -u)
-HOST_DBUS_PATH="/run/user/${USER_UID}/bus"
-IBUS_SOCKET_PATH="$HOME/.config/ibus/bus"
-XAUTH=${XAUTHORITY:-$HOME/.Xauthority}
+IMAGE_TAG="firefox-ubuntu:latest"
+CONTAINER_NAME="firefox-gui"
+PROFILE_DIR="/home/ubuntu/.mozilla/my_profile"
 
-# 🌟 핵심 1: 이미 컨테이너가 실행 중인지 확인
-if [ "$(docker ps -q -f name=firefox-gui)" ]; then
-    # 실행 중이라면 기존 컨테이너 안에서 전달받은 옵션(--new-window 등)을 실행하고 스크립트 종료
-    docker exec -d firefox-gui firefox "$@"
+# 사전 검증
+require_docker
+require_x11
+resolve_host_paths
+allow_x_access
+
+# 이미 실행 중이면 기존 인스턴스에 옵션 전달 (싱글 인스턴스)
+if [ -n "$(docker ps -q -f "name=^${CONTAINER_NAME}$")" ]; then
+    docker exec -d "$CONTAINER_NAME" firefox "$@"
     exit 0
 fi
 
-# 실행 중이 아니라면 찌꺼기 컨테이너 정리 후 새로 시작
-docker rm -f firefox-gui 2>/dev/null
+# 이미지 없으면 자동 빌드, 찌꺼기 컨테이너 정리
+ensure_image "$IMAGE_TAG" "$SCRIPT_DIR"
+remove_stale_container "$CONTAINER_NAME"
 
-# 폴더 생성 및 권한 개방
-mkdir -p "$HOME/Downloads/firefox_docker"
-mkdir -p "$HOME/.mozilla_docker/my_profile"
-chmod -R 777 "$HOME/Downloads/firefox_docker"
-chmod -R 777 "$HOME/.mozilla_docker"
+# 데이터 볼륨 (호스트 폴더 생성 + 마운트)
+wire_data "$HOME/Downloads/firefox_docker" "/home/ubuntu/Downloads"
+wire_data "$HOME/.mozilla_docker"           "/home/ubuntu/.mozilla"
 
-# (위쪽 코드는 기존과 동일하게 유지)
+# 프로필 잠금 파일 제거 (crash 후 재실행 시 잠금 에러 방지)
+find "$HOME/.mozilla_docker" \( -name ".parentlock" -o -name "lock" \) -delete 2>/dev/null || true
 
-# 잠금 파일 강제 삭제 (에러 방지용)
-find "$HOME/.mozilla_docker" -name ".parentlock" -delete 2>/dev/null
-find "$HOME/.mozilla_docker" -name "lock" -delete 2>/dev/null
+# 리소스 배선 (조건부)
+wire_display
+wire_audio
+wire_ime
+wire_gpu
+wire_locale
 
-# 🌟 변경점: -d를 빼고 exec를 추가하여 프로세스를 우분투가 추적할 수 있게 만듭니다.
+# 프로세스를 호스트가 추적하도록 exec 사용
 exec docker run \
-  --name firefox-gui \
+  --name "$CONTAINER_NAME" \
   --net=host \
   --ipc=host \
   --shm-size=2g \
   --security-opt seccomp=unconfined \
   --security-opt apparmor=unconfined \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  -v "$XAUTH:$XAUTH:ro" \
-  -v "$XDG_RUNTIME_DIR/pulse/native:$XDG_RUNTIME_DIR/pulse/native" \
-  -v "$HOME/Downloads/firefox_docker:/home/ubuntu/Downloads" \
-  -v "$HOME/.mozilla_docker:/home/ubuntu/.mozilla" \
-  -v "${HOST_DBUS_PATH}:${HOST_DBUS_PATH}" \
-  -v "${IBUS_SOCKET_PATH}:/home/ubuntu/.config/ibus/bus:ro" \
-  -e XAUTHORITY=$XAUTH \
-  -e DISPLAY=$DISPLAY \
-  -e PULSE_SERVER=unix:$XDG_RUNTIME_DIR/pulse/native \
-  -e DBUS_SESSION_BUS_ADDRESS="unix:path=${HOST_DBUS_PATH}" \
-  -e GTK_IM_MODULE=xim \
-  -e QT_IM_MODULE=xim \
-  -e XMODIFIERS=@im=ibus \
-  -e LANG="ko_KR.UTF-8" \
-  -e LANGUAGE="ko_KR:ko" \
-  -e LC_ALL="ko_KR.UTF-8" \
-  --device /dev/dri \
-  --device /dev/snd \
+  "${DOCKER_MOUNTS[@]}" \
+  "${DOCKER_ENVS[@]}" \
+  "${DOCKER_DEVICES[@]}" \
   --rm \
-  firefox-ubuntu:latest firefox --profile /home/ubuntu/.mozilla/my_profile "$@"
+  "$IMAGE_TAG" firefox --profile "$PROFILE_DIR" "$@"

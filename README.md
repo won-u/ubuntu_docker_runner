@@ -41,6 +41,8 @@
 
 ```
 docker_files/
+├── lib/
+│   └── common.sh      # 실행 스크립트 공통 헬퍼(검증·배선·자동빌드)
 ├── firefox/          # 컨테이너화된 Firefox (한글/IME/오디오/GPU)
 │   ├── Dockerfile
 │   └── run-firefox.sh
@@ -52,7 +54,7 @@ docker_files/
     └── build-input-leap.sh
 ```
 
-각 프로젝트는 **`Dockerfile`(환경 정의)** 과 **실행/빌드 스크립트(런타임 배선)** 의 두 파일로 구성됩니다.
+각 GUI 실행형 프로젝트는 **`Dockerfile`(환경 정의)** 과 **실행/빌드 스크립트(런타임 배선)** 으로 구성되며, 배선 로직은 [`lib/common.sh`](./lib/common.sh)에 몸아 중복을 제거했습니다.
 
 ### firefox — 격리된 Firefox 브라우저
 
@@ -66,9 +68,11 @@ docker build -t firefox-ubuntu:latest .
 
 **실행**
 ```bash
-./run-firefox.sh                 # 브라우저 실행
+./run-firefox.sh                 # 브라우저 실행 (이미지가 없으면 자동 빌드)
 ./run-firefox.sh --new-window    # 이미 떠 있으면 새 창만 추가로 열기
 ```
+
+> 실행 스크립트는 이미지가 없으면 **자동으로 `docker build`** 합니다. 수동 빌드도 가능합니다(`cd firefox && docker build -t firefox-ubuntu:latest .`).
 
 - `firefox-gui` 컨테이너가 **이미 실행 중이면** `docker exec`로 기존 인스턴스에 창/URL을 전달하고, 아니면 새로 띄웁니다.
 - 프로필: `~/.mozilla_docker/my_profile`, 다운로드: `~/Downloads/firefox_docker` (호스트에 저장)

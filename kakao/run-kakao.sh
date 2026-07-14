@@ -1,16 +1,26 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# run-kakao.sh — Wine 기반 카카오톡 실행 (없으면 이미지 자동 빌드)
+#
+set -euo pipefail
 
-# X 서버 및 권한 설정
-xhost +local:docker > /dev/null 2>&1
-USER_UID=$(id -u)
-HOST_DBUS_PATH="/run/user/${USER_UID}/bus"
-XAUTH=${XAUTHORITY:-$HOME/.Xauthority}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
 
-# 카카오톡 데이터 영구 저장용 폴더
-mkdir -p "$HOME/.kakaotalk_docker"
-chmod -R 777 "$HOME/.kakaotalk_docker"
+IMAGE_TAG="kakaotalk-ubuntu:latest"
+CONTAINER_NAME="kakaotalk-gui"
+DOCKERFILE="$SCRIPT_DIR/Dockerfile.kakao"
 
-docker rm -f kakaotalk-gui 2>/dev/null
+# 사전 검증
+require_docker
+require_x11
+resolve_host_paths
+allow_x_access
+
+# 이미지 없으면 자동 빌드, 찌꺼기 컨테이너 정리
+ensure_image "$IMAGE_TAG" "$SCRIPT_DIR" "$DOCKERFILE"
+remove_stale_container "$CONTAINER_NAME"
 
 # 자동 시작 명령어: 한글 글꼴 레지스트리 패치 및 순정 실행
 START_CMD='
@@ -53,25 +63,27 @@ else
 fi
 '
 
+# 데이터 볼륨: Wine 프리픽스 전체를 호스트에 영속화
+wire_data "$HOME/.kakaotalk_docker" "/home/ubuntu/.wine"
+
+# 리소스 배선 (조건부)
+wire_display
+wire_audio
+wire_ime
+wire_locale
+# 시간대: 호스트 시계 공유
+if [ -e /etc/localtime ]; then
+    DOCKER_MOUNTS+=( -v /etc/localtime:/etc/localtime:ro )
+fi
+DOCKER_ENVS+=( -e "TZ=Asia/Seoul" )
+
 # 도커 실행
 exec docker run \
-  --name kakaotalk-gui \
+  --name "$CONTAINER_NAME" \
   --net=host \
   --ipc=host \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  -v "$XAUTH:$XAUTH:ro" \
-  -v "$HOME/.kakaotalk_docker:/home/ubuntu/.wine" \
-  -v "$XDG_RUNTIME_DIR/pulse/native:$XDG_RUNTIME_DIR/pulse/native" \
-  -v /etc/localtime:/etc/localtime:ro \
-  -e XAUTHORITY=$XAUTH \
-  -e DISPLAY=$DISPLAY \
-  -e PULSE_SERVER=unix:$XDG_RUNTIME_DIR/pulse/native \
-  -e GTK_IM_MODULE=xim \
-  -e QT_IM_MODULE=xim \
-  -e XMODIFIERS=@im=ibus \
-  -e LANG="ko_KR.UTF-8" \
-  -e TZ="Asia/Seoul" \
-  --device /dev/snd \
+  "${DOCKER_MOUNTS[@]}" \
+  "${DOCKER_ENVS[@]}" \
+  "${DOCKER_DEVICES[@]}" \
   --rm \
-  kakaotalk-ubuntu:latest bash -c "$START_CMD"
-  
+  "$IMAGE_TAG" bash -c "$START_CMD"
