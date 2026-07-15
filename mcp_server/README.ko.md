@@ -203,7 +203,8 @@ docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.np
 rm -rf node_modules dist
 ```
 
-`npm run check` = `format:check` → `lint` → `test` → `build` 를 CI 와 같은 순서로 fail-fast 실행합니다.
+`npm run check` = `format:check` → `lint` → `build` → `test` 를 fail-fast 로 실행합니다. CI 도 바로 이
+스크립트를 돌리므로, 로컬 게이트와 PR 게이트가 어긋날 수 없습니다.
 
 ### 개별 스크립트
 

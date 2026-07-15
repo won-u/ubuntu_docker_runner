@@ -201,7 +201,8 @@ docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.np
 rm -rf node_modules dist
 ```
 
-`npm run check` = `format:check` → `lint` → `test` → `build`, fail-fast, in the same order as CI.
+`npm run check` = `format:check` → `lint` → `build` → `test`, fail-fast. CI runs this very script,
+so the gates here and the gates on a PR cannot drift apart.
 
 ### Individual scripts
 

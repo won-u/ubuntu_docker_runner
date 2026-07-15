@@ -20,17 +20,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Format check
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type-check & build
-        run: npm run build
-
-      - name: Test
-        run: npm test
+      # Single gate, defined in package.json, so CI and the documented local
+      # command cannot drift apart: format:check -> lint -> build -> test.
+      - name: Check
+        run: npm run check
 
   docker:
     name: Docker build
