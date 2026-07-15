@@ -364,14 +364,50 @@ export async function readRuleFile(
 }
 
 /**
+ * Appended to every rule served through a tool.
+ *
+ * A rule's references — inline `(→ foo.md)` mentions and its bottom `참조` list
+ * — are provenance and an index, never a fetch signal. A client that dutifully
+ * follows each one turns that index into a dependency graph and pulls most of
+ * the ruleset for a single lookup (measured: get_i18n_l10n reached 19 files /
+ * ~30k chars to serve a 988-char rule — 31x amplification).
+ *
+ * The criterion here is deliberately "that rule's OWN trigger fired", not "the
+ * task touches that topic". The latter reads as permission rather than a brake:
+ * an inline reference sits *inside* the very bullet the reader is acting on, so
+ * "is my task about this topic?" is always yes. i18n-l10n.md's "don't hardcode
+ * timezone assumptions (→ configuration-management.md)" is complete on its own —
+ * fetching the config rule adds nothing to it. Whether to fetch a rule is
+ * already settled authoritatively by its `whenToCall` in RULE_TOOLS (surfaced in
+ * the tool description and the server instructions); a mention in a sibling file
+ * carries no trigger information at all.
+ *
+ * This lives in the payload rather than only in the server `instructions` on
+ * purpose. Instructions are advisory and many clients never surface them, but
+ * the rule text is what the client asked for, so it always reaches the model —
+ * and it lands exactly where the `참조` list invites a follow-up fetch.
+ */
+export const REFERENCE_NOTE =
+  "> **참조 안내**: 본문의 `(→ foo.md)` 와 하단 `참조` 목록은 **출처·색인이지 " +
+  "가져오라는 신호가 아니다.** 규칙을 가져올지는 **그 규칙 자신의 트리거**(각 도구 " +
+  "설명에 명시)만 정한다 — 다른 문서가 언급했다는 이유로는 가져오지 않는다. " +
+  "이 문서에 적힌 규칙을 지키는 데 필요한 내용은 이 문서 안에 있다.";
+
+/**
  * Convert a ReadResult into the MCP tool response shape. Successful reads return
- * the markdown as text; failures return the friendly message (also as text, with
- * isError) so the client can display it cleanly.
+ * the markdown as text, with REFERENCE_NOTE appended so the anti-cascade guidance
+ * travels with the content; failures return the friendly message (also as text,
+ * with isError) so the client can display it cleanly.
  */
 export function toToolResult(result: ReadResult) {
   if (result.ok) {
     return {
-      content: [{ type: "text" as const, text: result.content }],
+      content: [
+        {
+          type: "text" as const,
+          text: `${result.content.trimEnd()}\n\n---\n${REFERENCE_NOTE}\n`,
+        },
+      ],
     };
   }
   return {

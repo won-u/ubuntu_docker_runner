@@ -4,7 +4,12 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { readRuleFile, resolveWithinRules, toToolResult } from "./rules.js";
+import {
+  REFERENCE_NOTE,
+  readRuleFile,
+  resolveWithinRules,
+  toToolResult,
+} from "./rules.js";
 
 async function tempRoot(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "rules-test-"));
@@ -88,10 +93,29 @@ test("readRuleFile refuses traversal via a friendly message", async () => {
 
 test("toToolResult wraps ok and error results", () => {
   const okRes = toToolResult({ ok: true, content: "hi" });
-  assert.equal(okRes.content[0].text, "hi");
+  assert.match(okRes.content[0].text, /^hi\b/);
   assert.equal((okRes as { isError?: boolean }).isError, undefined);
 
   const errRes = toToolResult({ ok: false, message: "nope" });
   assert.equal(errRes.content[0].text, "nope");
   assert.equal((errRes as { isError?: boolean }).isError, true);
+});
+
+test("toToolResult appends the reference note to a served rule", () => {
+  // The note is what stops a client from treating a rule's `참조` index as a
+  // fetch list and pulling most of the ruleset for one lookup. It must ride
+  // along with the content, since server `instructions` may never be surfaced.
+  const res = toToolResult({
+    ok: true,
+    content: "# Rule\n참조: `security-guidelines.md`",
+  });
+  assert.ok(res.content[0].text.includes(REFERENCE_NOTE));
+  assert.ok(res.content[0].text.startsWith("# Rule"));
+});
+
+test("toToolResult does not append the reference note to a failure", () => {
+  // A "not available" message is not a rule — appending index guidance to it
+  // would be noise, and there is no `참조` list to guard against.
+  const res = toToolResult({ ok: false, message: "not available" });
+  assert.ok(!res.content[0].text.includes(REFERENCE_NOTE));
 });

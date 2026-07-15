@@ -112,6 +112,9 @@ function createRulesServer(): McpServer {
       // The per-tool trigger lines are DERIVED from the RULE_TOOLS manifest
       // (src/rules.ts), so adding a rule there updates this guidance too — the
       // two can never drift apart.
+      // Because "client support varies" applies to the anti-cascade guidance
+      // below too, its load-bearing copy is REFERENCE_NOTE (src/rules.ts), which
+      // rides along inside every served rule and so cannot be dropped.
       instructions: [
         "This server provides my personal, project-agnostic engineering rules and preferences.",
         "Consult it proactively:",
@@ -120,7 +123,9 @@ function createRulesServer(): McpServer {
           CODING_STANDARDS.whenToCall,
         ),
         ...RULE_TOOLS.map((rt) => instructionLine(rt.tool, rt.whenToCall)),
-        "When a fetched rule references another rule file (e.g. security-guidelines.md), fetch it via the matching tool -- the file name maps to get_<name> with hyphens converted to underscores (e.g. security-guidelines.md -> get_security_guidelines, error-handling-resilience.md -> get_error_handling_resilience, coding-standards/{language}.md -> get_coding_standards).",
+        "A rule's references -- inline (-> foo.md) mentions and its bottom '참조' list -- are provenance and an index, NOT a fetch signal. What decides whether to fetch a rule is that rule's OWN trigger listed above, and nothing else. Never fetch a rule just because another rule mentioned it, or one lookup drags in most of the ruleset.",
+        'Example: i18n-l10n.md says "don\'t hardcode timezone assumptions (-> configuration-management.md)". That is NOT a reason to call get_configuration_management -- the instruction is already complete, and the config rule adds nothing to it. Call get_configuration_management when its own trigger fires: you are actually reading config or adding an env var.',
+        "When you do need one, the file name maps to get_<name> with hyphens converted to underscores (e.g. security-guidelines.md -> get_security_guidelines, error-handling-resilience.md -> get_error_handling_resilience, coding-standards/{language}.md -> get_coding_standards).",
         "Project-specific build/test/validate commands and per-project architecture are NOT here -- read the project's own CLAUDE.md / AGENTS.md.",
       ].join("\n"),
     },
