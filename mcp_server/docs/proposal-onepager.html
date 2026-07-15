@@ -198,8 +198,6 @@
   .chip .st { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; }
   .chip.live { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); }
   .chip.live .st { color: var(--accent); }
-  .chip.soon { opacity: 0.72; }
-  .chip.soon .st { color: var(--muted); }
 
   /* ---- before/after strip ---- */
   .ba { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -328,7 +326,7 @@
       </div>
 
       <div class="viz-legend">
-        <div class="kill"><b>없애야 할 다름 — 노이즈</b>형식·네이밍·구조·목차·브랜치 이름. 습관 차이일 뿐, 정보 가치 0. 리뷰어만 피곤하게 만든다.</div>
+        <div class="kill"><b>없애야 할 다름 — 노이즈</b>형식·네이밍·구조·목차·브랜치 이름. 그날그날 습관 차이일 뿐, 정보 가치 0. 나중에 다시 읽는 나만 피곤하게 만든다.</div>
         <div class="keep"><b>살려야 할 다름 — 실력</b>알고리즘 선택, 설계 분할, 트레이드오프 판단. 개성이 드러나야 하는 지점은 그대로 둔다.</div>
       </div>
     </div>
@@ -336,7 +334,7 @@
 
   <!-- WHO GAINS -->
   <section>
-    <div class="sec-head"><h2>누가 무엇을 얻는가</h2></div>
+    <div class="sec-head"><h2>무엇을 얻는가</h2></div>
     <div class="cards">
       <div class="card">
         <h3><span class="who">작업 효율</span></h3>
@@ -368,10 +366,10 @@
   <section>
     <div class="sec-head">
       <h2>코드만이 아니라 전방위</h2>
-      <span class="sec-note">새 영역 = 마크다운 파일 하나 추가</span>
+      <span class="sec-note">도구 22개 · 새 영역 = 마크다운 파일 하나 추가</span>
     </div>
     <div class="chips">
-      <span class="chip live"><span class="st">LIVE</span> 코딩 표준</span>
+      <span class="chip live"><span class="st">LIVE</span> 코딩 표준 · C++/TS/JS/Python/Bash</span>
       <span class="chip live"><span class="st">LIVE</span> 워크플로우</span>
       <span class="chip live"><span class="st">LIVE</span> 커밋·형상관리</span>
       <span class="chip live"><span class="st">LIVE</span> 완료 기준(DoD)</span>
@@ -402,10 +400,10 @@
     <div class="ba">
       <div class="barow head"><span class="k">항목</span><span class="b">Before</span><span class="a">After</span></div>
       <div class="barow"><span class="k">표준 실효성</span><span class="b">위키엔 있으나 작업엔 미반영</span><span class="a">작업하는 순간 자동 적용</span></div>
-      <div class="barow"><span class="k">품질 편차</span><span class="b">사람·프로젝트마다 제각각</span><span class="a">형태는 균일, 알맹이는 각자</span></div>
+      <div class="barow"><span class="k">품질 편차</span><span class="b">프로젝트·세션마다 제각각</span><span class="a">형태는 균일, 알맹이는 문제마다</span></div>
       <div class="barow"><span class="k">리뷰</span><span class="b">같은 형식 지적 반복</span><span class="a">형식은 통과, 리뷰는 본질로</span></div>
-      <div class="barow"><span class="k">온보딩</span><span class="b">암묵지 습득에 시간</span><span class="a">도구가 표준을 즉시 안내</span></div>
-      <div class="barow"><span class="k">유지보수</span><span class="b">표준이 여러 곳에 흩어짐</span><span class="a">한 곳만 수정 → 전원 반영</span></div>
+      <div class="barow"><span class="k">새 프로젝트 착수</span><span class="b">관례를 매번 다시 떠올림</span><span class="a">도구가 표준을 즉시 안내</span></div>
+      <div class="barow"><span class="k">유지보수</span><span class="b">표준이 여러 곳에 흩어짐</span><span class="a">한 곳만 수정 → 전 프로젝트 반영</span></div>
     </div>
   </section>
 
@@ -415,15 +413,14 @@
     <div class="foot-grid">
       <div class="status">
         <span class="badge"><span class="pulse"></span> 이미 동작 중</span>
-        <p>Streamable HTTP MCP 서버(단일 <code>/mcp</code> 엔드포인트)에 <strong>도구 22개 · 프롬프트 2개</strong>가 등록되어 있고, 토큰 인증·Docker 배포·마크다운 무재빌드 갱신·한/영 문서까지 갖춰져 있습니다. <strong>PoC가 아니라 지금 시연 가능</strong>합니다.</p>
+        <p>Streamable HTTP MCP 서버(단일 <code>/mcp</code> 엔드포인트)에 <strong>도구 22개 · 프롬프트 2개</strong>가 등록되어 있고, 선택적 Bearer 토큰 인증·Origin 검증·Docker 배포·마크다운 무재빌드 갱신·한/영 문서까지 갖춰져 있습니다. <strong>PoC가 아니라 실제로 쓰고 있습니다</strong>(Phase 1·2 완료).</p>
         <p style="margin-top:12px;font-size:13px;">유의: 이 서버는 <strong>강제가 아니라 유도</strong>입니다. 최종 강제선(CI·린트·리뷰)은 그대로 두고, 그 앞단에서 위반 자체를 줄이는 <strong>보완</strong>입니다.</p>
       </div>
       <div>
         <ol class="asklist">
-          <li><strong>먼저 적용할</strong> 프로젝트 1개를 고릅니다.</li>
-          <li>각 영역 baseline 문서를 <strong>내 실제 정책</strong>으로 채웁니다.</li>
-          <li>해당 프로젝트에서 <strong>클라이언트 등록</strong>(1회 설정)을 마칩니다.</li>
-          <li>얼마간 써 본 뒤 <strong>효과를 점검</strong>하고 나머지 프로젝트로 확산을 결정합니다.</li>
+          <li>아직 연결하지 않은 프로젝트에 <strong>클라이언트 등록</strong>(1회 설정)을 추가합니다. — CLI: <code>claude mcp add --transport http personal-rules &lt;url&gt;/mcp</code>, Web: 저장소에 <code>.mcp.json</code> 커밋(공개 HTTPS 필요).</li>
+          <li>쓰면서 걸리는 규칙은 <code>host_rules/</code> 마크다운을 고쳐 <strong>바로 다듬습니다</strong>(재빌드 불필요).</li>
+          <li>비어 있는 영역이 보이면 <strong>마크다운 하나 추가 + 도구 등록</strong>으로 확장합니다.</li>
         </ol>
       </div>
     </div>

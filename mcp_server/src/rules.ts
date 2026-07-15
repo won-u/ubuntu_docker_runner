@@ -29,17 +29,25 @@ export interface RuleTool {
   file: string;
   /** Tool title surfaced to clients. */
   title: string;
-  /** Tool description — tells the AI *when* to call it. */
+  /** What the rule covers. The "when to call it" half comes from `whenToCall`. */
   description: string;
+  /**
+   * The trigger, as a lowercase clause that reads naturally after "Call this"
+   * (e.g. "before committing or writing a PR"). Single source for BOTH the
+   * tool description suffix and the server's instructions line, so the two can
+   * never drift apart. See toolDescription() / instructionLine().
+   */
+  whenToCall: string;
   /** Human-readable name used in "not available" messages. */
   friendlyName: string;
 }
 
 /**
  * Single source of truth for the parameter-less rule tools. index.ts registers
- * every entry, and rules-integrity.test.ts guards each against the filesystem and
- * the `<file>.md -> get_<name>` mapping. Add a rule here (plus its markdown file)
- * and it is wired up and guarded automatically.
+ * every entry and derives its instructions from them, and rules-integrity.test.ts
+ * guards each against the filesystem, the `<file>.md -> get_<name>` mapping, and
+ * the user-facing docs. Add a rule here (plus its markdown file) and it is wired
+ * up, documented-checked, and guarded automatically.
  *
  * get_coding_standards is intentionally NOT here — it takes a `language`
  * parameter and maps to coding-standards/{language}.md (see CODING_LANGUAGES).
@@ -50,7 +58,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "workflow-rules.md",
     title: "Get Workflow Rules",
     description:
-      "Fetch the required step-by-step workflow for all engineering tasks (planning, testing, reporting). Call this when starting or planning any task.",
+      "Fetch the required step-by-step workflow for all engineering tasks (planning, testing, reporting).",
+    whenToCall: "when starting or planning any task",
     friendlyName: "workflow rules",
   },
   {
@@ -58,7 +67,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "commit-guidelines.md",
     title: "Get Commit Guidelines",
     description:
-      "Fetch the rules for Git commits, history management, and PR/CL writing. Call this before committing or writing a PR.",
+      "Fetch the rules for Git commits, history management, and PR/CL writing.",
+    whenToCall: "before committing or writing a PR",
     friendlyName: "commit guidelines",
   },
   {
@@ -67,6 +77,7 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     title: "Get Definition of Done",
     description:
       "Fetch my Definition of Done: the required quality gates (format, lint, type-check, tests, build) a change must pass before it is complete. This is the policy; the exact commands live in each project's own repo docs (CLAUDE.md / AGENTS.md).",
+    whenToCall: "before marking work as done",
     friendlyName: "definition of done",
   },
   {
@@ -74,7 +85,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "security-guidelines.md",
     title: "Get Security Guidelines",
     description:
-      "Fetch my secure-coding guidelines: how to protect secrets (never commit or log them, encryption), input validation, dependency/vulnerability policy, and prohibited APIs. Call this before handling credentials, user input, or adding dependencies. (For where config/secrets are sourced and injected, see get_configuration_management.)",
+      "Fetch my secure-coding guidelines: how to protect secrets (never commit or log them, encryption), input validation, dependency/vulnerability policy, and prohibited APIs. (For where config/secrets are sourced and injected, see get_configuration_management.)",
+    whenToCall: "before handling credentials, user input, or dependencies",
     friendlyName: "security guidelines",
   },
   {
@@ -82,7 +94,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "code-review-guidelines.md",
     title: "Get Code Review Guidelines",
     description:
-      "Fetch my code review standards and PR checklist (what reviewers look for and what blocks a merge). Call this when reviewing code or preparing a change for review.",
+      "Fetch my code review standards and PR checklist (what reviewers look for and what blocks a merge).",
+    whenToCall: "when reviewing code or preparing a change for review",
     friendlyName: "code review guidelines",
   },
   {
@@ -90,7 +103,9 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "documentation-standards.md",
     title: "Get Documentation Standards",
     description:
-      "Fetch my documentation standards (code comments, README, ADRs). Call this when writing or updating docs, doc comments, or architecture decision records.",
+      "Fetch my documentation standards (code comments, README, ADRs).",
+    whenToCall:
+      "when writing or updating docs, doc comments, or architecture decision records",
     friendlyName: "documentation standards",
   },
   {
@@ -98,7 +113,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "diagram-guidelines.md",
     title: "Get Diagram Guidelines",
     description:
-      "Fetch my diagram conventions (C4, UML, diagram-as-code, abstraction levels). Call this when creating or editing architecture/design diagrams.",
+      "Fetch my diagram conventions (C4, UML, diagram-as-code, abstraction levels).",
+    whenToCall: "when creating or editing architecture/design diagrams",
     friendlyName: "diagram guidelines",
   },
   {
@@ -106,7 +122,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "branching-strategy.md",
     title: "Get Branching & Release Strategy",
     description:
-      "Fetch my branching and release strategy (branch model, naming, main protection, SemVer/tagging). Call this when creating branches or planning a release.",
+      "Fetch my branching and release strategy (branch model, naming, main protection, SemVer/tagging).",
+    whenToCall: "when creating branches or planning a release",
     friendlyName: "branching strategy",
   },
   {
@@ -114,7 +131,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "testing-standards.md",
     title: "Get Testing Standards",
     description:
-      "Fetch my testing standards: what to test, test design, determinism, and coverage expectations. Call this when writing or changing tests, or deciding what to test.",
+      "Fetch my testing standards: what to test, test design, determinism, and coverage expectations.",
+    whenToCall: "when writing or changing tests, or deciding what to test",
     friendlyName: "testing standards",
   },
   {
@@ -122,7 +140,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "api-design-guidelines.md",
     title: "Get API Design Guidelines",
     description:
-      "Fetch my API design guidelines for public interfaces (REST/RPC/library APIs): naming, structure, versioning, backward compatibility, errors, and pagination. Call this when designing or changing a public API.",
+      "Fetch my API design guidelines for public interfaces (REST/RPC/library APIs): naming, structure, versioning, backward compatibility, errors, and pagination.",
+    whenToCall: "when designing or changing a public API",
     friendlyName: "API design guidelines",
   },
   {
@@ -130,7 +149,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "dependency-management.md",
     title: "Get Dependency Management Rules",
     description:
-      "Fetch my dependency management rules: when to add a dependency, version pinning, license policy, and keeping dependencies updated and secure. Call this before adding or upgrading a dependency.",
+      "Fetch my dependency management rules: when to add a dependency, version pinning, license policy, and keeping dependencies updated and secure.",
+    whenToCall: "before adding or upgrading a dependency",
     friendlyName: "dependency management rules",
   },
   {
@@ -138,7 +158,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "logging-observability.md",
     title: "Get Logging & Observability Standards",
     description:
-      "Fetch my logging and observability standards: structured logging, log levels, metrics, tracing, and what to signal. Call this when adding logging/metrics or instrumenting a service.",
+      "Fetch my logging and observability standards: structured logging, log levels, metrics, tracing, and what to signal.",
+    whenToCall: "when adding logging/metrics or instrumenting a service",
     friendlyName: "logging and observability standards",
   },
   {
@@ -146,7 +167,9 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "configuration-management.md",
     title: "Get Configuration Management Rules",
     description:
-      "Fetch my configuration and environment management rules: separating config from code, injecting per-environment settings, config validation/defaults/precedence, and feature flags — i.e. where config and secrets are sourced and wired in (for how to protect secrets themselves, see get_security_guidelines). Call this when reading configuration, adding an env var or setting, or handling multiple environments.",
+      "Fetch my configuration and environment management rules: separating config from code, injecting per-environment settings, config validation/defaults/precedence, and feature flags — i.e. where config and secrets are sourced and wired in (for how to protect secrets themselves, see get_security_guidelines).",
+    whenToCall:
+      "when reading configuration, adding an env var or setting, or handling multiple environments",
     friendlyName: "configuration management rules",
   },
   {
@@ -154,7 +177,9 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "data-persistence.md",
     title: "Get Data & Persistence Rules",
     description:
-      "Fetch my data and persistence rules: schema design, migrations (zero-downtime/reversible), transactions, indexing, and data integrity/backup. Call this when designing a schema, writing a migration, or working with a database.",
+      "Fetch my data and persistence rules: schema design, migrations (zero-downtime/reversible), transactions, indexing, and data integrity/backup.",
+    whenToCall:
+      "when designing a schema, writing a migration, or working with a database",
     friendlyName: "data and persistence rules",
   },
   {
@@ -162,7 +187,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "error-handling-resilience.md",
     title: "Get Error Handling & Resilience Rules",
     description:
-      "Fetch my error-handling and resilience rules: failure handling, timeouts, retries/backoff, circuit breakers, idempotency, and graceful degradation. Call this when handling errors or calling external/network dependencies.",
+      "Fetch my error-handling and resilience rules: failure handling, timeouts, retries/backoff, circuit breakers, idempotency, and graceful degradation.",
+    whenToCall: "when handling errors or calling external/network dependencies",
     friendlyName: "error handling and resilience rules",
   },
   {
@@ -170,7 +196,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "performance-guidelines.md",
     title: "Get Performance Guidelines",
     description:
-      "Fetch my performance and efficiency rules: measure-first, algorithmic complexity, IO/DB, caching, and memory/resources. Call this when optimizing or when a change is performance-sensitive.",
+      "Fetch my performance and efficiency rules: measure-first, algorithmic complexity, IO/DB, caching, and memory/resources.",
+    whenToCall: "when optimizing or when a change is performance-sensitive",
     friendlyName: "performance guidelines",
   },
   {
@@ -178,7 +205,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "ai-assisted-coding.md",
     title: "Get AI-Assisted Coding Hygiene",
     description:
-      "Fetch my AI/LLM-assisted coding hygiene rules: verifying generated code, avoiding hallucinated APIs/dependencies, staying in scope, keeping secrets out of prompts, and honest testing/reporting. Call this when generating or modifying code with AI assistance.",
+      "Fetch my AI/LLM-assisted coding hygiene rules: verifying generated code, avoiding hallucinated APIs/dependencies, staying in scope, keeping secrets out of prompts, and honest testing/reporting.",
+    whenToCall: "when generating or modifying code with AI assistance",
     friendlyName: "AI-assisted coding hygiene",
   },
   {
@@ -186,7 +214,9 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "i18n-l10n.md",
     title: "Get Internationalization & Localization Rules",
     description:
-      "Fetch my internationalization and localization rules: string externalization, UTF-8 encoding, locale-aware formatting, time zones, and validation. Call this when handling user-facing text, locales, dates/numbers, or time zones.",
+      "Fetch my internationalization and localization rules: string externalization, UTF-8 encoding, locale-aware formatting, time zones, and validation.",
+    whenToCall:
+      "when handling user-facing text, locales, dates/numbers, or time zones",
     friendlyName: "internationalization and localization rules",
   },
   {
@@ -194,7 +224,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "concurrency-async.md",
     title: "Get Concurrency & Async Rules",
     description:
-      "Fetch my language-agnostic concurrency and async rules: minimizing shared mutable state, lock discipline and deadlock avoidance, atomicity/visibility, async hygiene, cancellation/timeout propagation, and thread-safety contracts. Call this when writing concurrent, parallel, or async code.",
+      "Fetch my language-agnostic concurrency and async rules: minimizing shared mutable state, lock discipline and deadlock avoidance, atomicity/visibility, async hygiene, cancellation/timeout propagation, and thread-safety contracts.",
+    whenToCall: "when writing concurrent, parallel, or async code",
     friendlyName: "concurrency and async rules",
   },
   {
@@ -202,7 +233,8 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "accessibility.md",
     title: "Get Accessibility Rules",
     description:
-      "Fetch my accessibility (a11y) rules for user interfaces: semantic structure, keyboard access, color/contrast, screen readers/ARIA, motion/media, and verification. Call this when building or changing a user-facing UI (web/app).",
+      "Fetch my accessibility (a11y) rules for user interfaces: semantic structure, keyboard access, color/contrast, screen readers/ARIA, motion/media, and verification.",
+    whenToCall: "when building or changing a user-facing UI (web/app)",
     friendlyName: "accessibility rules",
   },
   {
@@ -210,10 +242,40 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "ci-cd.md",
     title: "Get CI/CD Pipeline Rules",
     description:
-      "Fetch my CI/CD pipeline rules: pipeline stages (format/lint/type/test/build), fail-fast, reproducibility/determinism, required-check gates, secrets in CI, caching, and artifacts/deploy. Call this when setting up or changing a CI/CD pipeline.",
+      "Fetch my CI/CD pipeline rules: pipeline stages (format/lint/type/test/build), fail-fast, reproducibility/determinism, required-check gates, secrets in CI, caching, and artifacts/deploy.",
+    whenToCall: "when setting up or changing a CI/CD pipeline",
     friendlyName: "CI/CD pipeline rules",
   },
 ];
+
+/* -------------------------------------------------------------------------- */
+/* Derived text (single source: the manifest above)                           */
+/* -------------------------------------------------------------------------- */
+
+/** Uppercase the first character so a trigger clause can start a sentence. */
+function capitalize(text: string): string {
+  return text.length === 0 ? text : text[0].toUpperCase() + text.slice(1);
+}
+
+/**
+ * The full MCP tool description = what it covers + when to call it.
+ * Built from the manifest so the trigger is written exactly once.
+ */
+export function toolDescription(
+  rule: Pick<RuleTool, "description" | "whenToCall">,
+): string {
+  return `${rule.description} Call this ${rule.whenToCall}.`;
+}
+
+/**
+ * One guidance line for the server `instructions`, e.g.
+ * "- Before committing or writing a PR -> get_commit_guidelines."
+ * Derived from the same `whenToCall` as the tool description above, so the
+ * instructions can never fall out of sync with the registered tools.
+ */
+export function instructionLine(tool: string, whenToCall: string): string {
+  return `- ${capitalize(whenToCall)} -> ${tool}.`;
+}
 
 /**
  * Result of an attempt to read a rule file. We never throw raw exceptions out to

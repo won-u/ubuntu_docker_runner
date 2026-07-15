@@ -85,5 +85,30 @@
 - 예: `error-handling-resilience.md` → `get_error_handling_resilience`
 - 예: `coding-standards/python.md` → `get_coding_standards({ language: "python" })`
 
-규칙을 추가·수정하려면 `host_rules/` 의 마크다운을 고치면 됩니다(컨테이너 재빌드 불필요).
-새 규칙 파일을 추가할 때는 `src/rules.ts` 의 `RULE_TOOLS` 에도 등록해야 도구로 노출됩니다.
+## 규칙 수정 · 추가 방법
+
+**기존 규칙의 내용만 수정**하려면 `host_rules/` 의 해당 마크다운을 고치면 끝입니다
+(읽기 전용 마운트라 **컨테이너 재빌드 불필요** — 다음 호출부터 바로 반영).
+
+**새 규칙(=새 도구)을 추가**할 때는 아래 3곳만 손대면 됩니다. 나머지는 자동 생성되거나,
+빠뜨리면 **테스트가 잡아줍니다.**
+
+| 순서 | 대상 | 무엇을 | 빠뜨리면 |
+| --- | --- | --- | --- |
+| 1 | `host_rules/<이름>.md` | 규칙 본문 작성 | 2를 하면 **테스트 실패**(파일 없음) |
+| 2 | `src/rules.ts` → `RULE_TOOLS` | 항목 추가(`tool`·`file`·`title`·`description`·`whenToCall`·`friendlyName`) | **테스트 실패**(고아 파일) |
+| 3 | `README.md` · `README.ko.md` · **이 문서** | 도구 표·트리에 항목 추가 | **테스트 실패**(문서 동기화 검사) |
+
+**자동으로 처리되는 것 — 손댈 필요 없음**
+- `src/index.ts` 의 **도구 등록**과 **`instructions`(언제 호출할지 안내)** 는 `RULE_TOOLS` 에서
+  생성됩니다. 각 항목의 **`whenToCall` 한 필드**가 도구 설명의 "Call this …" 와 instructions
+  트리거 줄을 **모두** 만들므로 둘이 어긋날 수 없습니다.
+- `docs/architecture.md`·proposal 문서는 도구 목록을 **복제하지 않으므로** 갱신 대상이 아닙니다.
+
+> **`whenToCall` 작성법**: "Call this " 뒤에 자연스럽게 붙는 **소문자 절**로 씁니다
+> (예: `"before committing or writing a PR"` → 설명은 "… Call this before committing or
+> writing a PR.", instructions 는 "- Before committing or writing a PR -> get_commit_guidelines.").
+>
+> 규칙 파일명 → 도구 이름은 **하이픈이 언더스코어로** 바뀝니다(`ci-cd.md` → `get_ci_cd`).
+> 새 **언어** 표준은 `coding-standards/<언어>.md` + `src/rules.ts` 의 `CODING_LANGUAGES`
+> enum + 문서의 언어 목록에 추가합니다(어느 하나라도 빠지면 테스트 실패).

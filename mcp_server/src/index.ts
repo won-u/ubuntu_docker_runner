@@ -30,10 +30,26 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { CODING_LANGUAGES, RULE_TOOLS, readRuleFile } from "./rules.js";
+import {
+  CODING_LANGUAGES,
+  RULE_TOOLS,
+  instructionLine,
+  readRuleFile,
+  toolDescription,
+} from "./rules.js";
 import { makeRequireAuth, makeTokenValidator, parseTokens } from "./auth.js";
 import { makeOriginGuard, parseList } from "./origin.js";
 import { toToolResult } from "./rules.js";
+
+/* -------------------------------------------------------------------------- */
+/* get_coding_standards — the one parameterized tool (not in RULE_TOOLS)      */
+/* -------------------------------------------------------------------------- */
+
+/** What it covers + when to call it — same shape as a RULE_TOOLS entry. */
+const CODING_STANDARDS = {
+  description: "Fetch my coding standards for a specific programming language.",
+  whenToCall: "before writing or reviewing code in a language",
+} as const;
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -93,31 +109,17 @@ function createRulesServer(): McpServer {
       // Surfaced to clients at initialize; helps the AI decide *when* to call
       // each tool. Client support varies, so the tool descriptions and each
       // project's CLAUDE.md / AGENTS.md carry the same guidance as a backstop.
+      // The per-tool trigger lines are DERIVED from the RULE_TOOLS manifest
+      // (src/rules.ts), so adding a rule there updates this guidance too — the
+      // two can never drift apart.
       instructions: [
         "This server provides my personal, project-agnostic engineering rules and preferences.",
         "Consult it proactively:",
-        "- Before writing code in a language -> get_coding_standards(language).",
-        "- When planning any task -> get_workflow_rules.",
-        "- Before committing or writing a PR -> get_commit_guidelines.",
-        "- Before marking work as done -> get_definition_of_done.",
-        "- When handling secrets, user input, or dependencies -> get_security_guidelines.",
-        "- When reviewing code -> get_code_review_guidelines.",
-        "- When writing documentation, comments, or ADRs -> get_documentation_standards.",
-        "- When creating or editing diagrams -> get_diagram_guidelines.",
-        "- When naming branches or planning a release -> get_branching_strategy.",
-        "- When writing or changing tests -> get_testing_standards.",
-        "- When designing or changing a public API -> get_api_design_guidelines.",
-        "- Before adding or upgrading a dependency -> get_dependency_management.",
-        "- When adding logging, metrics, or tracing -> get_logging_observability.",
-        "- When reading configuration or adding an env var/setting -> get_configuration_management.",
-        "- When designing a schema, writing a migration, or using a database -> get_data_persistence.",
-        "- When handling errors or calling external/network dependencies -> get_error_handling_resilience.",
-        "- When optimizing or touching performance-sensitive code -> get_performance_guidelines.",
-        "- When generating or modifying code with AI assistance -> get_ai_assisted_coding.",
-        "- When handling user-facing text, locales, dates, or time zones -> get_i18n_l10n.",
-        "- When writing concurrent, parallel, or async code -> get_concurrency_async.",
-        "- When building or changing a user-facing UI (web/app) -> get_accessibility.",
-        "- When setting up or changing a CI/CD pipeline -> get_ci_cd.",
+        instructionLine(
+          "get_coding_standards(language)",
+          CODING_STANDARDS.whenToCall,
+        ),
+        ...RULE_TOOLS.map((rt) => instructionLine(rt.tool, rt.whenToCall)),
         "When a fetched rule references another rule file (e.g. security-guidelines.md), fetch it via the matching tool -- the file name maps to get_<name> with hyphens converted to underscores (e.g. security-guidelines.md -> get_security_guidelines, error-handling-resilience.md -> get_error_handling_resilience, coding-standards/{language}.md -> get_coding_standards).",
         "Project-specific build/test/validate commands and per-project architecture are NOT here -- read the project's own CLAUDE.md / AGENTS.md.",
       ].join("\n"),
@@ -129,8 +131,7 @@ function createRulesServer(): McpServer {
     "get_coding_standards",
     {
       title: "Get Coding Standards",
-      description:
-        "Fetch my coding standards for a specific programming language. Call this before writing or reviewing code in that language.",
+      description: toolDescription(CODING_STANDARDS),
       inputSchema: {
         language: z
           .enum(CODING_LANGUAGES)
@@ -160,7 +161,11 @@ function createRulesServer(): McpServer {
   for (const rt of RULE_TOOLS) {
     server.registerTool(
       rt.tool,
-      { title: rt.title, description: rt.description, inputSchema: {} },
+      {
+        title: rt.title,
+        description: toolDescription(rt),
+        inputSchema: {},
+      },
       async () => toToolResult(await readRule([rt.file], rt.friendlyName)),
     );
   }

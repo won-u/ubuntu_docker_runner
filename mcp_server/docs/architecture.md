@@ -13,9 +13,11 @@
 ### 1.1 목적
 Personal Rules MCP Server 는 **내 개인 엔지니어링 규칙·선호**(코딩 표준, 워크플로우,
 커밋 규약, 완료 기준, 보안, 코드 리뷰, 문서·다이어그램 표준, 브랜치 전략,
-테스트 표준, API 설계, 의존성 관리, 로깅/관측성)을
+테스트 표준, API 설계, 의존성 관리, 로깅/관측성, 설정·환경 관리, 데이터·영속성,
+에러 처리·복원력, 성능, AI 보조 코딩, 국제화·현지화, 동시성·비동기, 접근성, CI/CD)을
 [MCP(Model Context Protocol)](https://modelcontextprotocol.io) 로 AI 클라이언트
-(**Claude Code / Cline / Roo Code** 등)에 제공하는 서버입니다.
+(**Claude Code CLI/Web · Cline · Roo Code** 등)에 제공하는 서버입니다.
+제공하는 도구·프롬프트의 용도별 안내는 [docs/tools-and-prompts.ko.md](tools-and-prompts.ko.md) 를 참고하십시오.
 
 ### 1.2 해결하려는 문제
 규칙 문서가 각 저장소·위키·개인 노트에 흩어져 있으면 다음 문제가 발생합니다.
@@ -39,7 +41,7 @@ Personal Rules MCP Server 는 **내 개인 엔지니어링 규칙·선호**(코�
 
 | 계층 | 담는 내용 | 위치 | 갱신 주체 |
 |---|---|---|---|
-| **개인 공통 · 크로스 프로젝트** | 코딩 표준, 워크플로우, 커밋, 보안, 코드리뷰, 완료 기준, 문서·다이어그램, 브랜치 전략, 테스트·API 설계·의존성·로깅 | **이 MCP 서버** (`host_rules/`) | 나(규칙 오너) |
+| **개인 공통 · 크로스 프로젝트** | 코딩 표준, 워크플로우, 커밋, 보안, 코드리뷰, 완료 기준, 문서·다이어그램, 브랜치 전략, 테스트·API 설계·의존성·로깅, 설정·데이터·에러 처리·성능·동시성, AI 보조 코딩, 국제화·접근성, CI/CD | **이 MCP 서버** (`host_rules/`) | 나(규칙 오너) |
 | **프로젝트별** | 빌드/테스트/검증 **명령**, 타깃, 프로젝트 아키텍처 | 각 저장소 `CLAUDE.md` / `AGENTS.md` ([repo-templates/](../repo-templates/)) | 나(프로젝트별) |
 
 **근거**: 프로젝트 유형(WebApp, Chromium fork, Vehicle Framework 등)마다 빌드 체계가 전혀
@@ -93,26 +95,29 @@ flowchart TB
 | 파일 | 책임 | 특징 |
 |---|---|---|
 | [src/index.ts](../src/index.ts) | Express·MCP 부트스트랩. 도구/프롬프트 등록, 엔드포인트 라우팅, 인증 연결, 기동/셧다운 | 프로세스 진입점 |
-| [src/rules.ts](../src/rules.ts) | 규칙 파일 해석·읽기. 경로 traversal 방어(`resolveWithinRules`), 구조화된 결과(`ReadResult`) 반환 | 순수 함수, `root` 를 인자로 받아 단위 테스트 가능 |
+| [src/rules.ts](../src/rules.ts) | 규칙 파일 해석·읽기. 파라미터 없는 규칙 도구의 단일 소스(`RULE_TOOLS`), 언어 목록(`CODING_LANGUAGES`), 경로 traversal 방어(`resolveWithinRules`), 구조화된 결과(`ReadResult`) 반환 | 순수 함수, `root` 를 인자로 받아 단위 테스트 가능 |
 | [src/auth.ts](../src/auth.ts) | Bearer 토큰 파싱, 상수시간 검증(`makeTokenValidator`), 인증 미들웨어(`makeRequireAuth`) | HTTP 계층 없이 테스트 가능 |
-| [src/rules.test.ts](../src/rules.test.ts), [src/auth.test.ts](../src/auth.test.ts) | `node:test` 단위 테스트 | 경로 방어·인증 판정 등 검증 |
+| [src/origin.ts](../src/origin.ts) | Origin 허용/거부 판정과 가드 미들웨어(`makeOriginGuard`), 목록 파싱(`parseList`) — DNS-rebinding 방어 | 순수 헬퍼, HTTP 계층 없이 테스트 가능 |
+| [src/rules.test.ts](../src/rules.test.ts), [src/auth.test.ts](../src/auth.test.ts), [src/origin.test.ts](../src/origin.test.ts), [src/rules-integrity.test.ts](../src/rules-integrity.test.ts) | `node:test` 단위 테스트 | 경로 방어·인증 판정·Origin 판정 검증. `rules-integrity` 는 `RULE_TOOLS` 를 실제 파일·`<file>.md → get_<name>` 매핑과 대조 |
 
 ```mermaid
 flowchart LR
     idx["index.ts<br/>(부트스트랩)"]
-    rules["rules.ts<br/>(규칙 해석)"]
+    rules["rules.ts<br/>(규칙 해석 · RULE_TOOLS)"]
     auth["auth.ts<br/>(인증)"]
+    origin["origin.ts<br/>(Origin 가드)"]
     mcp["@modelcontextprotocol/sdk"]
     express["express"]
 
     idx --> rules
     idx --> auth
+    idx --> origin
     idx --> mcp
     idx --> express
 ```
 
-> 화살표는 **모듈 의존(import)** 방향입니다. `rules.ts` / `auth.ts` 는 `index.ts` 에 의존하지
-> 않으므로 서버를 기동하지 않고도 독립적으로 테스트됩니다.
+> 화살표는 **모듈 의존(import)** 방향입니다. `rules.ts` / `auth.ts` / `origin.ts` 는 `index.ts` 에
+> 의존하지 않으므로 서버를 기동하지 않고도 독립적으로 테스트됩니다.
 
 ---
 
@@ -189,31 +194,22 @@ AI 가 규칙을 **자율적으로** 조회하도록 세 경로로 안내합니�
 2. **서버 instructions**: 초기화 때 전역 사용 지침을 제공합니다. 여기에는 **상호 참조 해석 규칙**도 포함됩니다 — 규칙 문서가 다른 파일(예: `security-guidelines.md`)을 언급하면, 파일명에 대응하는 `get_<name>` 도구로 가져오도록 안내합니다.
 3. **레포 `CLAUDE.md` / `AGENTS.md`**: **프로젝트 고유** 내용(빌드/테스트/검증 명령, 아키텍처)만 담고, 공통 도구 목록은 넣지 않습니다.
 
-### 제공 도구 (Tools) — 22개
-| 도구 | 파라미터 | 읽는 파일 |
-|---|---|---|
-| `get_coding_standards` | `language`: `cpp`\|`typescript`\|`javascript`\|`python`\|`bash`\|`general` | `coding-standards/{language}.md` |
-| `get_workflow_rules` | _(없음)_ | `workflow-rules.md` |
-| `get_commit_guidelines` | _(없음)_ | `commit-guidelines.md` |
-| `get_definition_of_done` | _(없음)_ | `definition-of-done.md` |
-| `get_security_guidelines` | _(없음)_ | `security-guidelines.md` |
-| `get_code_review_guidelines` | _(없음)_ | `code-review-guidelines.md` |
-| `get_documentation_standards` | _(없음)_ | `documentation-standards.md` |
-| `get_diagram_guidelines` | _(없음)_ | `diagram-guidelines.md` |
-| `get_branching_strategy` | _(없음)_ | `branching-strategy.md` |
-| `get_testing_standards` | _(없음)_ | `testing-standards.md` |
-| `get_api_design_guidelines` | _(없음)_ | `api-design-guidelines.md` |
-| `get_dependency_management` | _(없음)_ | `dependency-management.md` |
-| `get_logging_observability` | _(없음)_ | `logging-observability.md` |
-| `get_configuration_management` | _(없음)_ | `configuration-management.md` |
-| `get_data_persistence` | _(없음)_ | `data-persistence.md` |
-| `get_error_handling_resilience` | _(없음)_ | `error-handling-resilience.md` |
-| `get_performance_guidelines` | _(없음)_ | `performance-guidelines.md` |
-| `get_ai_assisted_coding` | _(없음)_ | `ai-assisted-coding.md` |
-| `get_i18n_l10n` | _(없음)_ | `i18n-l10n.md` |
-| `get_concurrency_async` | _(없음)_ | `concurrency-async.md` |
-| `get_accessibility` | _(없음)_ | `accessibility.md` |
-| `get_ci_cd` | _(없음)_ | `ci-cd.md` |
+### 제공 도구 (Tools)
+
+**전체 도구 목록과 각 도구의 용도·호출 시점**은 한 곳에만 둡니다 —
+👉 **[docs/tools-and-prompts.ko.md](tools-and-prompts.ko.md)**
+
+여기(아키텍처 문서)에 목록을 복제하지 않는 이유는, 규칙이 추가될 때마다 동기화해야 할
+지점이 늘어나 조용히 어긋나기 때문입니다. 이 문서는 **목록이 아니라 구조**를 설명합니다.
+
+- **등록 원천**: 파라미터 없는 도구는 전부 `src/rules.ts` 의 `RULE_TOOLS` 매니페스트에서
+  자동 등록됩니다. `get_coding_standards` 만 `language` 파라미터를 받는 예외로
+  `src/index.ts` 에 직접 등록됩니다(§14 참조).
+- **설명·instructions 생성**: 각 항목의 `whenToCall` 하나가 도구 설명("… Call this …")과
+  서버 `instructions` 의 트리거 줄을 **모두 생성**합니다(`toolDescription()` /
+  `instructionLine()`). 그래서 둘은 구조적으로 어긋날 수 없습니다.
+- **문서 동기화**: `rules-integrity.test.ts` 가 모든 도구·언어가 README·안내 문서에
+  등장하는지 검사하므로, 누락은 테스트 실패로 드러납니다.
 
 ### 제공 프롬프트 (Prompts) — 2개
 | 프롬프트 | 인자 | 동작 |
@@ -233,35 +229,15 @@ AI 가 규칙을 **자율적으로** 조회하도록 세 경로로 안내합니�
 
 ```
 host_rules/
-├── workflow-rules.md              # get_workflow_rules
-├── commit-guidelines.md           # get_commit_guidelines
-├── definition-of-done.md          # get_definition_of_done
-├── security-guidelines.md         # get_security_guidelines
-├── code-review-guidelines.md      # get_code_review_guidelines
-├── documentation-standards.md     # get_documentation_standards
-├── diagram-guidelines.md          # get_diagram_guidelines
-├── branching-strategy.md          # get_branching_strategy
-├── testing-standards.md           # get_testing_standards
-├── api-design-guidelines.md       # get_api_design_guidelines
-├── dependency-management.md       # get_dependency_management
-├── logging-observability.md       # get_logging_observability
-├── configuration-management.md    # get_configuration_management
-├── data-persistence.md            # get_data_persistence
-├── error-handling-resilience.md   # get_error_handling_resilience
-├── performance-guidelines.md      # get_performance_guidelines
-├── ai-assisted-coding.md          # get_ai_assisted_coding
-├── i18n-l10n.md                   # get_i18n_l10n
-├── concurrency-async.md           # get_concurrency_async
-├── accessibility.md               # get_accessibility
-├── ci-cd.md                       # get_ci_cd
+├── <규칙>.md            # 최상위 규칙 파일 하나 = 파라미터 없는 도구 하나
+│                        #   (파일명 → get_<name>, 하이픈은 언더스코어로)
 └── coding-standards/
-    ├── cpp.md                     # get_coding_standards { language: "cpp" }
-    ├── typescript.md
-    ├── javascript.md
-    ├── python.md
-    ├── bash.md
-    └── general.md
+    └── <언어>.md        # get_coding_standards { language: "<언어>" }
 ```
+
+> **실제 파일 목록은 여기에 복제하지 않습니다** — 전체 목록과 각 규칙의 용도는
+> [docs/tools-and-prompts.ko.md](tools-and-prompts.ko.md) 와 [README](../README.md) 에 있고,
+> 디렉터리 자체(`host_rules/`)가 언제나 최신 원본입니다.
 
 - 규칙 문서는 **도구에 무관한 순수 마크다운 콘텐츠**로 유지합니다(레포/위키 어디서든 읽힘). 도구 매핑은 콘텐츠가 아니라 서버 `instructions` 가 담당합니다.
 - 문서 간 상호 참조는 **파일명 기반**(예: ``` `commit-guidelines.md` ```)으로 두어 이식성을 지키고, 해석은 서버가 안내합니다.
@@ -273,7 +249,7 @@ host_rules/
 | 영역 | 조치 | 위치 |
 |---|---|---|
 | **인증** | 선택적 정적 Bearer 토큰(`/mcp` 가드). 콤마로 다중 토큰(발급·회전). 미설정 시 개방 + 기동 경고 로그. `401` 응답의 `WWW-Authenticate` realm 은 `personal-rules-mcp` | [src/auth.ts](../src/auth.ts) |
-| **DNS-rebinding 방어** | 요청의 `Origin` 헤더를 Express 미들웨어에서 검증. loopback origin 과 Origin 없는 네이티브 클라이언트는 항상 허용하고, 추가 브라우저 origin 은 `MCP_ALLOWED_ORIGINS` 로 허용 목록에 등록 | [src/index.ts](../src/index.ts) |
+| **DNS-rebinding 방어** | 요청의 `Origin` 헤더를 Express 미들웨어에서 검증. loopback origin 과 Origin 없는 네이티브 클라이언트는 항상 허용하고, 추가 브라우저 origin 은 `MCP_ALLOWED_ORIGINS` 로 허용 목록에 등록. 불일치는 `403` | [src/origin.ts](../src/origin.ts) |
 | **상수시간 비교** | 토큰을 SHA-256(고정 32바이트)으로 다이제스트 후 `timingSafeEqual`, 조기 반환 없음(타이밍 누출 방지) | `makeTokenValidator` |
 | **경로 traversal 방어** | `resolveWithinRules` 가 `..`·절대경로·sibling-prefix(`<root>-evil`) 탈출을 차단. 입력은 enum/고정 세그먼트로 제약(공격자 제어 세그먼트 없음) | [src/rules.ts](../src/rules.ts) |
 | **비-크래시 오류 처리** | 파일 부재·IO 오류는 예외 대신 정중한 메시지로 변환. `/mcp` 핸들러는 try/catch + 전역 `unhandledRejection`/`uncaughtException` 백스톱 | [src/index.ts](../src/index.ts) |
@@ -356,18 +332,26 @@ docker compose down                   # 중지
 ## 14. 확장 가이드
 
 ### 새 규칙 도구 추가
-1. `host_rules/` 에 규칙 마크다운을 추가합니다(파일명은 `get_<name>` 매핑 규칙을 따르도록 정합니다).
-2. [src/index.ts](../src/index.ts) 에 `server.registerTool(...)` 로 도구를 등록하고, 필요하면 `instructions` 에 사용 시점을 안내합니다.
-3. [README](../README.md) 의 도구 표와 [8. 규칙 콘텐츠 구성](#8-규칙-콘텐츠-구성) 트리를 **같은 변경(PR)에서** 갱신합니다.
+1. `host_rules/<이름>.md` 에 규칙 마크다운을 추가합니다(파일명이 곧 도구명 — `get_<name>`, 하이픈은 언더스코어).
+2. [src/rules.ts](../src/rules.ts) 의 `RULE_TOOLS` 매니페스트에 항목(`tool`·`file`·`title`·`description`·`whenToCall`·`friendlyName`)을 추가합니다. 이것으로 **등록·도구 설명·서버 instructions 가 모두 생성**됩니다 — `index.ts` 를 손댈 필요가 없습니다(`get_coding_standards` 만 `language` 파라미터 때문에 예외로 직접 등록).
+3. [README](../README.md)(en/ko) 의 도구 표·트리와 [docs/tools-and-prompts.ko.md](tools-and-prompts.ko.md) 에 항목을 추가합니다. **빠뜨리면 테스트가 실패**하므로 조용히 어긋나지 않습니다.
 4. 격리 Docker 에서 `format:check/lint/build/test` 를 통과시킵니다.
 
+> 이 문서(아키텍처)와 proposal 문서에는 도구 목록을 **복제하지 않으므로 갱신할 것이 없습니다.**
+> 동기화 지점을 늘리지 않기 위한 의도적 설계입니다.
+
+**`whenToCall` 규칙**: "Call this " 뒤에 자연스럽게 이어지는 **소문자 절**로 씁니다
+(예: `"before committing or writing a PR"`). 이 한 필드가 도구 설명 접미사와
+instructions 트리거 줄을 **동시에** 만들며, 형식은 `rules-integrity` 테스트가 검사합니다.
+
 ### 새 코딩 표준 언어 추가
-`src/rules.ts` 의 `CODING_LANGUAGES` enum 에 언어를 추가하고 `coding-standards/{language}.md` 를 둡니다.
+`src/rules.ts` 의 `CODING_LANGUAGES` enum 에 언어를 추가하고 `coding-standards/{language}.md` 를 둡니다(파일이 없으면 테스트 실패). README·안내 문서의 언어 목록에도 추가해야 테스트를 통과합니다.
 
 ---
 
 ## 15. 관련 문서
 - 사용자 가이드: [README.md](../README.md) · [README.ko.md](../README.ko.md)
+- 도구·프롬프트 용도별 안내(한글): [docs/tools-and-prompts.ko.md](tools-and-prompts.ko.md)
 - 저장소 템플릿(프로젝트별): [repo-templates/](../repo-templates/)
 - TLS/리버스 프록시 결정 기록: [docs/reverse-proxy-tls.md](reverse-proxy-tls.md)
 - 서버가 제공하는 규칙 원문: [host_rules/](../host_rules/)

@@ -13,10 +13,37 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { CODING_LANGUAGES, RULE_TOOLS } from "./rules.js";
+import {
+  CODING_LANGUAGES,
+  RULE_TOOLS,
+  instructionLine,
+  toolDescription,
+} from "./rules.js";
 
 /** Real rules directory served by the server (sibling of src/). */
 const RULES_DIR = fileURLToPath(new URL("../host_rules", import.meta.url));
+
+/**
+ * User-facing docs that list every tool. These are hand-maintained, so without
+ * a guard they drift silently whenever a rule is added. Keyed by a label used
+ * in the assertion message.
+ */
+const TOOL_DOCS: ReadonlyArray<{ label: string; path: string }> = [
+  {
+    label: "docs/tools-and-prompts.ko.md",
+    path: fileURLToPath(
+      new URL("../docs/tools-and-prompts.ko.md", import.meta.url),
+    ),
+  },
+  {
+    label: "README.md",
+    path: fileURLToPath(new URL("../README.md", import.meta.url)),
+  },
+  {
+    label: "README.ko.md",
+    path: fileURLToPath(new URL("../README.ko.md", import.meta.url)),
+  },
+];
 
 /** Markdown files a rule doc may reference that are NOT served rule files. */
 const EXTERNAL_MD = new Set([
@@ -68,6 +95,59 @@ test("RULE_TOOLS has no duplicate tool names or files", () => {
   const files = RULE_TOOLS.map((r) => r.file);
   assert.equal(new Set(tools).size, tools.length, "Duplicate tool name.");
   assert.equal(new Set(files).size, files.length, "Duplicate rule file.");
+});
+
+test("every tool is listed in the user-facing docs", () => {
+  // Guards the doc-drift failure mode: rules.ts is enforced by the tests above,
+  // but the docs were previously only kept in sync by hand.
+  for (const doc of TOOL_DOCS) {
+    const content = readFileSync(doc.path, "utf8");
+    for (const rt of RULE_TOOLS) {
+      assert.ok(
+        content.includes(rt.tool),
+        `${doc.label} does not mention "${rt.tool}". Add it there (and to the host_rules tree) when adding a rule.`,
+      );
+    }
+    assert.ok(
+      content.includes("get_coding_standards"),
+      `${doc.label} does not mention "get_coding_standards".`,
+    );
+  }
+});
+
+test("every coding-standards language is listed in the user-facing docs", () => {
+  for (const doc of TOOL_DOCS) {
+    const content = readFileSync(doc.path, "utf8");
+    for (const lang of CODING_LANGUAGES) {
+      assert.ok(
+        content.includes(`\`${lang}\``),
+        `${doc.label} does not list the "${lang}" coding-standards language.`,
+      );
+    }
+  }
+});
+
+test("tool description and instructions are derived from one whenToCall", () => {
+  // A rule with a missing/misshaped trigger would silently produce a broken
+  // description ("Call this .") or guidance line, so assert the shape here.
+  for (const rt of RULE_TOOLS) {
+    assert.ok(
+      rt.whenToCall.length > 0 && /^[a-z]/.test(rt.whenToCall),
+      `${rt.tool}: whenToCall must be a non-empty lowercase clause (got "${rt.whenToCall}").`,
+    );
+    assert.ok(
+      !rt.description.includes("Call this"),
+      `${rt.tool}: description must not repeat the trigger — that comes from whenToCall.`,
+    );
+    assert.ok(
+      toolDescription(rt).endsWith(`Call this ${rt.whenToCall}.`),
+      `${rt.tool}: toolDescription() should append the trigger.`,
+    );
+    assert.ok(
+      instructionLine(rt.tool, rt.whenToCall).endsWith(`-> ${rt.tool}.`),
+      `${rt.tool}: instructionLine() should point at the tool.`,
+    );
+  }
 });
 
 test("every coding-standards language file exists", () => {
