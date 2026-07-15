@@ -18,6 +18,8 @@ sessions like Claude Code on the web.
 
 ## Tools exposed
 
+> 📖 사람이 읽기 좋은 한글 안내(각 도구·프롬프트의 용도): **[docs/tools-and-prompts.ko.md](docs/tools-and-prompts.ko.md)**. The table below is a quick summary.
+
 | Tool                          | Parameters                                                          | Reads from                                     |
 | ----------------------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
 | `get_coding_standards`        | `language`: `cpp` \| `typescript` \| `javascript` \| `python` \| `bash` \| `general` | `/app/rules/coding-standards/{language}.md`    |
