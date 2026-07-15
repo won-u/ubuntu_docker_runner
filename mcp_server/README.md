@@ -163,20 +163,24 @@ To stop:
 docker compose down
 ```
 
-> **⚠️ Upgrading an older running instance (SSE → Streamable HTTP)**
+> **⚠️ If another MCP server is already bound to the port**
 >
-> The service and container were renamed (`rules-mcp-server` → `personal-rules-mcp`), so an
-> already-running old container becomes a compose **orphan**: `docker compose up -d` will not
-> replace it and will instead **fail on a port conflict**. Clear it explicitly first:
+> If you ran an older personal rules server before this repo existed, it still holds port 3000
+> and `docker compose up -d` **fails on a port conflict**. How you clear it depends on where it
+> came from:
 >
 > ```bash
-> docker compose ps                      # check whether the old container shows as an orphan
-> docker compose down --remove-orphans   # remove it (brief downtime here)
+> docker ps --filter publish=3000        # find what holds the port
+> docker rm -f <container>               # remove it, whatever project it belongs to
 > docker compose up --build -d
 > ```
 >
-> The endpoint also changed from `/sse` + `/messages` to **`/mcp`**, so any client registered
-> against the old server must be **re-registered** — see [Connecting a client](#connecting-a-client).
+> `docker compose down --remove-orphans` also works, but **only** for a container started from
+> this same directory (Compose only treats containers carrying this project's label as orphans).
+>
+> An older server may also have spoken the legacy HTTP+SSE transport (`GET /sse` + `POST /messages`),
+> which this server does not implement — it serves **`/mcp`** only. Re-register any such client
+> with `--transport http`; see [Connecting a client](#connecting-a-client).
 
 ---
 

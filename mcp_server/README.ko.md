@@ -162,21 +162,24 @@ MCP 엔드포인트: `http://localhost:3000/mcp`
 docker compose down
 ```
 
-> **⚠️ 구버전 인스턴스가 이미 떠 있다면 (SSE → Streamable HTTP 전환)**
+> **⚠️ 다른 MCP 서버가 이미 포트를 잡고 있다면**
 >
-> 서비스·컨테이너 이름이 바뀌었기 때문에(`rules-mcp-server` → `personal-rules-mcp`),
-> 기존 컨테이너는 compose 의 **orphan** 으로 남아 `docker compose up -d` 로 교체되지
-> 않고 **포트 충돌로 실패**합니다. 아래처럼 명시적으로 정리한 뒤 올려야 합니다.
+> 이 저장소 이전에 개인용 규칙 서버를 돌리고 있었다면 그 컨테이너가 3000 포트를 계속
+> 점유해 `docker compose up -d` 가 **포트 충돌로 실패**합니다. 정리 방법은 그 컨테이너가
+> 어디서 떴는지에 따라 다릅니다.
 >
 > ```bash
-> docker compose ps                      # 구 컨테이너가 orphan 으로 보이는지 확인
-> docker compose down --remove-orphans   # 구 컨테이너 제거 (이 순간 잠깐 중단됨)
+> docker ps --filter publish=3000        # 포트를 점유한 컨테이너 확인
+> docker rm -f <컨테이너>                 # 어느 프로젝트 소속이든 확실히 제거
 > docker compose up --build -d
 > ```
 >
-> 엔드포인트도 `/sse` + `/messages` → **`/mcp`** 로 바뀌었으므로, 기존에 등록해 둔
-> 클라이언트가 있으면 **재등록**해야 합니다(아래 [클라이언트 연결](#클라이언트-연결) 참조).
-> 구버전 등록을 지우고 `--transport http` 로 다시 추가하세요.
+> `docker compose down --remove-orphans` 로도 되지만, **이 디렉터리에서 띄운 컨테이너에
+> 한해서**입니다(compose 는 이 프로젝트 레이블이 붙은 컨테이너만 orphan 으로 봅니다).
+>
+> 구 서버가 과거 HTTP+SSE 전송(`GET /sse` + `POST /messages`)을 쓰고 있었다면, 이 서버는
+> 이를 구현하지 않고 **`/mcp`** 만 제공합니다. 해당 클라이언트는 `--transport http` 로
+> **재등록**하세요(아래 [클라이언트 연결](#클라이언트-연결) 참조).
 
 > 규칙 파일만 바꾼 경우 재빌드 불필요(마운트 즉시 반영). **도구/프롬프트 등 코드 변경 시에는
 > `docker compose up --build -d` 로 이미지를 재빌드**해야 합니다.
