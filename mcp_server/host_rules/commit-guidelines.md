@@ -11,12 +11,14 @@
 
 ## 2. 커밋 메시지 포맷 (Conventional Commits 기반)
 - 제목은 **영어**, 본문은 **한글**로 작성한다.
-- 제목: `<type>(module): 요약` — 50자 이내, 마침표 없이, 명령문(동사원형).
-  - type: feat / fix / docs / style / refactor / perf / test / chore
+- 제목: `<type>(scope): 요약` — 50자 이내, 마침표 없이, 명령문(동사원형).
+  - type: feat / fix / docs / style / refactor / perf / test / build / ci / chore / revert
+  - `build`(빌드 시스템·의존성), `ci`(파이프라인 설정 → `ci-cd.md`), `revert`(되돌리기)를 `chore` 로 뭉뚱그리지 않는다. `chore` 는 나머지에만 쓴다.
 - 본문은 빈 줄 뒤에 **맥락 → 구현 → 영향 순서로 서술**한다. **`[Why]`/`[What]`/`[Impact]` 같은 라벨은 절대 넣지 말고**, 그 내용을 자연스러운 문단으로 풀어 쓴다.
   1. (맥락) 왜 이 변경이 필요한가 — 문제점/배경.
   2. (구현) 코드 레벨에서 무엇을 어떻게 해결했는가 — 핵심 변경. 항목이 여럿이면 `-` 불릿.
   3. (영향) 메모리/성능/API/빌드 등에 미치는 영향.
+- **Breaking change 표기**: 하위 호환을 깨는 변경은 **반드시** 표시한다 — 제목의 type/scope 뒤에 `!` 를 붙이고(`feat(api)!: ...`), 푸터에 `BREAKING CHANGE: <무엇이 어떻게 깨지고 어떻게 마이그레이션하는가>` 를 단다. 무엇이 breaking 인지는 `api-design-guidelines.md` §6 기준(필드 제거·의미 변경·필수화·타입 변경)을 따른다. 이 표기가 **SemVer major 판정의 근거**이므로(`branching-strategy.md` §5), 빠뜨리면 릴리즈 버전이 틀어진다.
 - 이슈 트레일러: 이슈 트래커 키(예: Jira `PROJ-123`)는 **사용자 요청에서** 얻는다. 없고 실질적 변경이면 **한 번 묻고**, 사소한 변경/저장소 초기화면 생략한다. **임의로 만들지 않는다.** 본문 끝에 **완전한 키**로 트레일러를 단다(숫자만 쓰지 않음 — 트래커가 키를 스캔해 자동 링크):
   - 결함 해결: `Fixes: PROJ-123`
   - 기능/태스크/부분작업/관련: `Refs: PROJ-201`
@@ -45,6 +47,22 @@ feat(auth): add token refresh with retry and backoff
 - 실패 시 지수 백오프로 최대 3회 재시도한다.
 
 네트워크 일시 장애에 대한 복원력이 올라가고, 재로그인 빈도가 줄어든다.
+```
+
+### Breaking change 예시 (제목 `!` + 푸터)
+```text
+feat(api)!: replace token field with tokens array
+
+단일 세션만 가정한 `token` 필드로는 다중 기기 로그인을 표현할 수 없었다.
+
+- 응답의 `token` 을 제거하고 `tokens` 배열로 대체한다.
+
+기존 클라이언트는 응답 파싱에 실패한다. major 버전으로 릴리즈한다.
+
+BREAKING CHANGE: 응답의 `token` 필드가 제거되고 `tokens` 배열로 대체됐다.
+클라이언트는 `token` 대신 `tokens[0]` 을 읽도록 수정해야 한다.
+
+Refs: PROJ-201
 ```
 
 ❌ 나쁜 예시
