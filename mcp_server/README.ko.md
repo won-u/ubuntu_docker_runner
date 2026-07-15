@@ -162,12 +162,104 @@ MCP 엔드포인트: `http://localhost:3000/mcp`
 docker compose down
 ```
 
+> **⚠️ 구버전 인스턴스가 이미 떠 있다면 (SSE → Streamable HTTP 전환)**
+>
+> 서비스·컨테이너 이름이 바뀌었기 때문에(`rules-mcp-server` → `personal-rules-mcp`),
+> 기존 컨테이너는 compose 의 **orphan** 으로 남아 `docker compose up -d` 로 교체되지
+> 않고 **포트 충돌로 실패**합니다. 아래처럼 명시적으로 정리한 뒤 올려야 합니다.
+>
+> ```bash
+> docker compose ps                      # 구 컨테이너가 orphan 으로 보이는지 확인
+> docker compose down --remove-orphans   # 구 컨테이너 제거 (이 순간 잠깐 중단됨)
+> docker compose up --build -d
+> ```
+>
+> 엔드포인트도 `/sse` + `/messages` → **`/mcp`** 로 바뀌었으므로, 기존에 등록해 둔
+> 클라이언트가 있으면 **재등록**해야 합니다(아래 [클라이언트 연결](#클라이언트-연결) 참조).
+> 구버전 등록을 지우고 `--transport http` 로 다시 추가하세요.
+
 > 규칙 파일만 바꾼 경우 재빌드 불필요(마운트 즉시 반영). **도구/프롬프트 등 코드 변경 시에는
 > `docker compose up --build -d` 로 이미지를 재빌드**해야 합니다.
 
 ---
 
+## 개발 · 테스트
+
+> **호스트에 Node 를 설치할 필요가 없습니다.** 아래 명령은 모두 **컨테이너 안에서** 돌고
+> 소스만 마운트하므로 호스트가 오염되지 않습니다. CI 도 동일한 게이트를 돕니다.
+
+### 전체 검증 한 번에 (권장)
+
+```bash
+cd mcp_server
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.npm \
+  -v "$PWD":/app -w /app node:20-alpine \
+  sh -c "npm ci && npm run check"
+
+# 검증이 끝나면 생성된 산출물 제거 (호스트 청결 유지)
+rm -rf node_modules dist
+```
+
+`npm run check` = `format:check` → `lint` → `test` → `build` 를 CI 와 같은 순서로 fail-fast 실행합니다.
+
+### 개별 스크립트
+
+| 명령 | 하는 일 |
+| --- | --- |
+| `npm test` | 단위·무결성 테스트 (node:test, **총 30개**) |
+| `npm run lint` | ESLint (`lint:fix` 로 자동 수정) |
+| `npm run format` / `format:check` | Prettier 적용 / 검사 |
+| `npm run build` | TypeScript 컴파일(`tsc`) → `dist/` |
+| `npm run dev` | 개발 서버(자동 리로드) |
+
+개별 실행도 같은 방식으로 감쌉니다 — 예: `sh -c "npm ci && npm test"`.
+
+### 테스트가 검증하는 것
+
+| 파일 | 개수 | 내용 |
+| --- | --- | --- |
+| `src/rules.test.ts` | 10 | 규칙 파일 해석, **경로 traversal 방어**, 파일 없음·빈 파일의 정중한 메시지 |
+| `src/auth.test.ts` | 6 | Bearer 토큰 파싱·**상수시간 검증**, 401 응답 |
+| `src/origin.test.ts` | 5 | Origin 허용/거부(loopback·allowlist), **DNS 리바인딩 방어** |
+| `src/rules-integrity.test.ts` | 9 | **규칙 ↔ 도구 ↔ 문서 배선 무결성** (아래) |
+
+`rules-integrity` 가 특히 중요합니다 — **규칙을 추가하면서 뭔가 빠뜨리면 여기서 실패**합니다.
+
+- 모든 `RULE_TOOLS` 항목이 실재하는 규칙 파일을 가리키는가
+- `<파일>.md → get_<name>` 명명 규칙(하이픈→언더스코어)을 지키는가
+- 최상위 규칙 파일 중 **도구에 연결되지 않은 고아**가 없는가
+- `CODING_LANGUAGES` 의 모든 언어에 해당 파일이 있는가
+- 규칙 문서 간 **상호참조(`foo.md`)가 실재 파일로 해석**되는가
+- 모든 도구·언어가 **README(en/ko)·[도구 안내 문서](docs/tools-and-prompts.ko.md)에 등장**하는가 (문서 drift 방지)
+- `whenToCall` 형식이 올바른가 (도구 설명·`instructions` 자동 생성의 전제)
+
+### 서버가 실제로 뜨는지 확인 (스모크)
+
+단위 테스트와 별개로, 컨테이너를 띄워 MCP 핸드셰이크를 확인할 수 있습니다.
+
+```bash
+docker compose up --build -d
+curl -s localhost:3000/health          # {"status":"ok",...}
+
+# initialize -> 200 + Mcp-Session-Id 발급 확인
+curl -s -D - -o /dev/null -X POST localhost:3000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+  | grep -i 'HTTP/\|mcp-session-id'
+
+docker compose down
+```
+
+> 인증을 켰다면 `-H "Authorization: Bearer <token>"` 를 함께 보냅니다.
+> `.env` 에서 `PORT` 를 바꿨다면 `localhost:$PORT` 로 접속합니다.
+
+---
+
 ## 로컬 실행 (Docker 없이)
+
+> 호스트에 Node 20+ 가 설치돼 있어야 합니다. 호스트를 건드리고 싶지 않다면 위
+> [개발 · 테스트](#개발--테스트) 의 컨테이너 방식을 쓰세요.
 
 ```bash
 npm install

@@ -163,9 +163,100 @@ To stop:
 docker compose down
 ```
 
+> **⚠️ Upgrading an older running instance (SSE → Streamable HTTP)**
+>
+> The service and container were renamed (`rules-mcp-server` → `personal-rules-mcp`), so an
+> already-running old container becomes a compose **orphan**: `docker compose up -d` will not
+> replace it and will instead **fail on a port conflict**. Clear it explicitly first:
+>
+> ```bash
+> docker compose ps                      # check whether the old container shows as an orphan
+> docker compose down --remove-orphans   # remove it (brief downtime here)
+> docker compose up --build -d
+> ```
+>
+> The endpoint also changed from `/sse` + `/messages` to **`/mcp`**, so any client registered
+> against the old server must be **re-registered** — see [Connecting a client](#connecting-a-client).
+
+---
+
+## Development & testing
+
+> **No Node install on the host is required.** Everything below runs **inside a container**
+> with only the source mounted, so your host stays clean. CI runs the same gates.
+
+### Run every gate at once (recommended)
+
+```bash
+cd mcp_server
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.npm \
+  -v "$PWD":/app -w /app node:20-alpine \
+  sh -c "npm ci && npm run check"
+
+# Remove what the run generated, to keep the host clean
+rm -rf node_modules dist
+```
+
+`npm run check` = `format:check` → `lint` → `test` → `build`, fail-fast, in the same order as CI.
+
+### Individual scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm test` | Unit + integrity tests (node:test, **30 total**) |
+| `npm run lint` | ESLint (`lint:fix` to autofix) |
+| `npm run format` / `format:check` | Prettier write / check |
+| `npm run build` | TypeScript compile (`tsc`) → `dist/` |
+| `npm run dev` | Dev server with auto-reload |
+
+Wrap any of them the same way — e.g. `sh -c "npm ci && npm test"`.
+
+### What the tests cover
+
+| File | Cases | Covers |
+| --- | --- | --- |
+| `src/rules.test.ts` | 10 | Rule file resolution, **path-traversal guard**, polite messages for missing/empty files |
+| `src/auth.test.ts` | 6 | Bearer token parsing, **constant-time validation**, 401 responses |
+| `src/origin.test.ts` | 5 | Origin allow/deny (loopback, allowlist), **DNS-rebinding protection** |
+| `src/rules-integrity.test.ts` | 9 | **Rule ↔ tool ↔ docs wiring integrity** (below) |
+
+`rules-integrity` is the important one — **if you add a rule and forget something, it fails here**:
+
+- every `RULE_TOOLS` entry points at a rule file that exists
+- the `<file>.md → get_<name>` naming rule holds (hyphens → underscores)
+- no top-level rule file is orphaned (present but wired to no tool)
+- every `CODING_LANGUAGES` language has its file
+- every cross-reference (`foo.md`) between rule docs resolves to a real file
+- every tool and language appears in README (en/ko) and [the tools guide](docs/tools-and-prompts.ko.md) — prevents doc drift
+- `whenToCall` is well-formed (it generates both the tool description and the `instructions`)
+
+### Smoke-test the running server
+
+Separately from the unit tests, bring the container up and check the MCP handshake:
+
+```bash
+docker compose up --build -d
+curl -s localhost:3000/health          # {"status":"ok",...}
+
+# initialize -> 200 + an Mcp-Session-Id
+curl -s -D - -o /dev/null -X POST localhost:3000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+  | grep -i 'HTTP/\|mcp-session-id'
+
+docker compose down
+```
+
+> Add `-H "Authorization: Bearer <token>"` if auth is enabled, and use `localhost:$PORT`
+> if you changed `PORT` in `.env`.
+
 ---
 
 ## Run locally (without Docker)
+
+> Requires Node 20+ on the host. If you'd rather not touch the host, use the
+> containerized flow in [Development & testing](#development--testing) above.
 
 ```bash
 npm install
