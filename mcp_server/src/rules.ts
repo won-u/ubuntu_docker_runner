@@ -13,6 +13,7 @@ import path from "node:path";
 export const CODING_LANGUAGES = [
   "cpp",
   "typescript",
+  "javascript",
   "python",
   "bash",
   "general",
@@ -49,7 +50,7 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "workflow-rules.md",
     title: "Get Workflow Rules",
     description:
-      "Fetch the required step-by-step workflow for all engineering tasks (planning, testing, reporting).",
+      "Fetch the required step-by-step workflow for all engineering tasks (planning, testing, reporting). Call this when starting or planning any task.",
     friendlyName: "workflow rules",
   },
   {
@@ -57,7 +58,7 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "commit-guidelines.md",
     title: "Get Commit Guidelines",
     description:
-      "Fetch the rules for Git commits, history management, and PR/CL writing.",
+      "Fetch the rules for Git commits, history management, and PR/CL writing. Call this before committing or writing a PR.",
     friendlyName: "commit guidelines",
   },
   {
@@ -73,7 +74,7 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "security-guidelines.md",
     title: "Get Security Guidelines",
     description:
-      "Fetch my secure-coding guidelines: secret handling, input validation, dependency/vulnerability policy, and prohibited APIs. Call this before handling credentials, user input, or adding dependencies.",
+      "Fetch my secure-coding guidelines: how to protect secrets (never commit or log them, encryption), input validation, dependency/vulnerability policy, and prohibited APIs. Call this before handling credentials, user input, or adding dependencies. (For where config/secrets are sourced and injected, see get_configuration_management.)",
     friendlyName: "security guidelines",
   },
   {
@@ -145,7 +146,7 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     file: "configuration-management.md",
     title: "Get Configuration Management Rules",
     description:
-      "Fetch my configuration and environment management rules: separating config from code, secrets vs config, per-environment settings, validation/defaults/precedence, and feature flags. Call this when reading configuration, adding an env var or setting, or handling multiple environments.",
+      "Fetch my configuration and environment management rules: separating config from code, injecting per-environment settings, config validation/defaults/precedence, and feature flags — i.e. where config and secrets are sourced and wired in (for how to protect secrets themselves, see get_security_guidelines). Call this when reading configuration, adding an env var or setting, or handling multiple environments.",
     friendlyName: "configuration management rules",
   },
   {
@@ -203,6 +204,14 @@ export const RULE_TOOLS: readonly RuleTool[] = [
     description:
       "Fetch my accessibility (a11y) rules for user interfaces: semantic structure, keyboard access, color/contrast, screen readers/ARIA, motion/media, and verification. Call this when building or changing a user-facing UI (web/app).",
     friendlyName: "accessibility rules",
+  },
+  {
+    tool: "get_ci_cd",
+    file: "ci-cd.md",
+    title: "Get CI/CD Pipeline Rules",
+    description:
+      "Fetch my CI/CD pipeline rules: pipeline stages (format/lint/type/test/build), fail-fast, reproducibility/determinism, required-check gates, secrets in CI, caching, and artifacts/deploy. Call this when setting up or changing a CI/CD pipeline.",
+    friendlyName: "CI/CD pipeline rules",
   },
 ];
 

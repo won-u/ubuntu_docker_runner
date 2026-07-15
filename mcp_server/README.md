@@ -20,7 +20,7 @@ sessions like Claude Code on the web.
 
 | Tool                          | Parameters                                                          | Reads from                                     |
 | ----------------------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
-| `get_coding_standards`        | `language`: `cpp` \| `typescript` \| `python` \| `bash` \| `general` | `/app/rules/coding-standards/{language}.md`    |
+| `get_coding_standards`        | `language`: `cpp` \| `typescript` \| `javascript` \| `python` \| `bash` \| `general` | `/app/rules/coding-standards/{language}.md`    |
 | `get_workflow_rules`          | _(none)_                                                           | `/app/rules/workflow-rules.md`                 |
 | `get_commit_guidelines`       | _(none)_                                                           | `/app/rules/commit-guidelines.md`              |
 | `get_definition_of_done`      | _(none)_                                                           | `/app/rules/definition-of-done.md`             |
@@ -41,6 +41,7 @@ sessions like Claude Code on the web.
 | `get_i18n_l10n`               | _(none)_                                                           | `/app/rules/i18n-l10n.md`                      |
 | `get_concurrency_async`       | _(none)_                                                           | `/app/rules/concurrency-async.md`              |
 | `get_accessibility`           | _(none)_                                                           | `/app/rules/accessibility.md`                  |
+| `get_ci_cd`                   | _(none)_                                                           | `/app/rules/ci-cd.md`                          |
 
 > This server holds **cross-project, project-agnostic** rules only. Project-specific
 > build/test/validate commands live in each repository's own `CLAUDE.md` / `AGENTS.md`
@@ -120,9 +121,11 @@ host_rules/
 ├── i18n-l10n.md                   # get_i18n_l10n
 ├── concurrency-async.md           # get_concurrency_async
 ├── accessibility.md               # get_accessibility
+├── ci-cd.md                       # get_ci_cd
 └── coding-standards/
     ├── cpp.md                     # get_coding_standards { language: "cpp" }
     ├── typescript.md
+    ├── javascript.md
     ├── python.md
     ├── bash.md
     └── general.md

@@ -117,7 +117,8 @@ function createRulesServer(): McpServer {
         "- When handling user-facing text, locales, dates, or time zones -> get_i18n_l10n.",
         "- When writing concurrent, parallel, or async code -> get_concurrency_async.",
         "- When building or changing a user-facing UI (web/app) -> get_accessibility.",
-        "When a fetched rule references another rule file (e.g. security-guidelines.md), fetch it via the matching tool -- the file name maps to get_<name> (e.g. security-guidelines.md -> get_security_guidelines, coding-standards/{language}.md -> get_coding_standards).",
+        "- When setting up or changing a CI/CD pipeline -> get_ci_cd.",
+        "When a fetched rule references another rule file (e.g. security-guidelines.md), fetch it via the matching tool -- the file name maps to get_<name> with hyphens converted to underscores (e.g. security-guidelines.md -> get_security_guidelines, error-handling-resilience.md -> get_error_handling_resilience, coding-standards/{language}.md -> get_coding_standards).",
         "Project-specific build/test/validate commands and per-project architecture are NOT here -- read the project's own CLAUDE.md / AGENTS.md.",
       ].join("\n"),
     },
@@ -129,7 +130,7 @@ function createRulesServer(): McpServer {
     {
       title: "Get Coding Standards",
       description:
-        "Fetch my coding standards for a specific programming language.",
+        "Fetch my coding standards for a specific programming language. Call this before writing or reviewing code in that language.",
       inputSchema: {
         language: z
           .enum(CODING_LANGUAGES)

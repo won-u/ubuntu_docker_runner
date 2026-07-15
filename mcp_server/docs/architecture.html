@@ -629,7 +629,7 @@ Streamable HTTP 로 대체되어 이 서버에서 <strong>제거</strong>되었�
 <li><strong>서버 instructions</strong>: 초기화 때 전역 사용 지침을 제공합니다. 여기에는 <strong>상호 참조 해석 규칙</strong>도 포함됩니다 — 규칙 문서가 다른 파일(예: <code>security-guidelines.md</code>)을 언급하면, 파일명에 대응하는 <code>get_&lt;name&gt;</code> 도구로 가져오도록 안내합니다.</li>
 <li><strong>레포 <code>CLAUDE.md</code> / <code>AGENTS.md</code></strong>: <strong>프로젝트 고유</strong> 내용(빌드/테스트/검증 명령, 아키텍처)만 담고, 공통 도구 목록은 넣지 않습니다.</li>
 </ol>
-<h3 id="제공-도구-tools--21개">제공 도구 (Tools) — 21개</h3>
+<h3 id="제공-도구-tools--22개">제공 도구 (Tools) — 22개</h3>
 <table>
 <thead>
 <tr>
@@ -641,7 +641,7 @@ Streamable HTTP 로 대체되어 이 서버에서 <strong>제거</strong>되었�
 <tbody>
 <tr>
 <td><code>get_coding_standards</code></td>
-<td><code>language</code>: <code>cpp</code>|<code>typescript</code>|<code>python</code>|<code>bash</code>|<code>general</code></td>
+<td><code>language</code>: <code>cpp</code>|<code>typescript</code>|<code>javascript</code>|<code>python</code>|<code>bash</code>|<code>general</code></td>
 <td><code>coding-standards/{language}.md</code></td>
 </tr>
 <tr>
@@ -744,6 +744,11 @@ Streamable HTTP 로 대체되어 이 서버에서 <strong>제거</strong>되었�
 <td><em>(없음)</em></td>
 <td><code>accessibility.md</code></td>
 </tr>
+<tr>
+<td><code>get_ci_cd</code></td>
+<td><em>(없음)</em></td>
+<td><code>ci-cd.md</code></td>
+</tr>
 </tbody>
 </table>
 <h3 id="제공-프롬프트-prompts--2개">제공 프롬프트 (Prompts) — 2개</h3>
@@ -797,9 +802,11 @@ Streamable HTTP 로 대체되어 이 서버에서 <strong>제거</strong>되었�
 ├── i18n-l10n.md                   # get_i18n_l10n
 ├── concurrency-async.md           # get_concurrency_async
 ├── accessibility.md               # get_accessibility
+├── ci-cd.md                       # get_ci_cd
 └── coding-standards/
     ├── cpp.md                     # get_coding_standards { language: &quot;cpp&quot; }
     ├── typescript.md
+    ├── javascript.md
     ├── python.md
     ├── bash.md
     └── general.md

@@ -31,7 +31,7 @@ AI가 작업 중 **필요할 때 자동으로 호출**합니다.
 
 | 도구                          | 파라미터                                                           | 읽는 파일                                     |
 | ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
-| `get_coding_standards`        | `language`: `cpp` \| `typescript` \| `python` \| `bash` \| `general` | `/app/rules/coding-standards/{language}.md`   |
+| `get_coding_standards`        | `language`: `cpp` \| `typescript` \| `javascript` \| `python` \| `bash` \| `general` | `/app/rules/coding-standards/{language}.md`   |
 | `get_workflow_rules`          | _(없음)_                                                           | `/app/rules/workflow-rules.md`                |
 | `get_commit_guidelines`       | _(없음)_                                                           | `/app/rules/commit-guidelines.md`             |
 | `get_definition_of_done`      | _(없음)_                                                           | `/app/rules/definition-of-done.md`            |
@@ -52,6 +52,7 @@ AI가 작업 중 **필요할 때 자동으로 호출**합니다.
 | `get_i18n_l10n`               | _(없음)_                                                           | `/app/rules/i18n-l10n.md`                     |
 | `get_concurrency_async`       | _(없음)_                                                           | `/app/rules/concurrency-async.md`             |
 | `get_accessibility`           | _(없음)_                                                           | `/app/rules/accessibility.md`                 |
+| `get_ci_cd`                   | _(없음)_                                                           | `/app/rules/ci-cd.md`                         |
 
 요청한 마크다운 파일이 없으면 raw 예외 대신 **정중한 안내 메시지**(에러 결과로 표시)를 반환합니다.
 
@@ -119,9 +120,11 @@ host_rules/
 ├── i18n-l10n.md                   # get_i18n_l10n
 ├── concurrency-async.md           # get_concurrency_async
 ├── accessibility.md               # get_accessibility
+├── ci-cd.md                       # get_ci_cd
 └── coding-standards/
     ├── cpp.md                     # get_coding_standards { language: "cpp" }
     ├── typescript.md
+    ├── javascript.md
     ├── python.md
     ├── bash.md
     └── general.md

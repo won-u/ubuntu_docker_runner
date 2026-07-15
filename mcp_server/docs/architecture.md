@@ -189,10 +189,10 @@ AI 가 규칙을 **자율적으로** 조회하도록 세 경로로 안내합니�
 2. **서버 instructions**: 초기화 때 전역 사용 지침을 제공합니다. 여기에는 **상호 참조 해석 규칙**도 포함됩니다 — 규칙 문서가 다른 파일(예: `security-guidelines.md`)을 언급하면, 파일명에 대응하는 `get_<name>` 도구로 가져오도록 안내합니다.
 3. **레포 `CLAUDE.md` / `AGENTS.md`**: **프로젝트 고유** 내용(빌드/테스트/검증 명령, 아키텍처)만 담고, 공통 도구 목록은 넣지 않습니다.
 
-### 제공 도구 (Tools) — 21개
+### 제공 도구 (Tools) — 22개
 | 도구 | 파라미터 | 읽는 파일 |
 |---|---|---|
-| `get_coding_standards` | `language`: `cpp`\|`typescript`\|`python`\|`bash`\|`general` | `coding-standards/{language}.md` |
+| `get_coding_standards` | `language`: `cpp`\|`typescript`\|`javascript`\|`python`\|`bash`\|`general` | `coding-standards/{language}.md` |
 | `get_workflow_rules` | _(없음)_ | `workflow-rules.md` |
 | `get_commit_guidelines` | _(없음)_ | `commit-guidelines.md` |
 | `get_definition_of_done` | _(없음)_ | `definition-of-done.md` |
@@ -213,6 +213,7 @@ AI 가 규칙을 **자율적으로** 조회하도록 세 경로로 안내합니�
 | `get_i18n_l10n` | _(없음)_ | `i18n-l10n.md` |
 | `get_concurrency_async` | _(없음)_ | `concurrency-async.md` |
 | `get_accessibility` | _(없음)_ | `accessibility.md` |
+| `get_ci_cd` | _(없음)_ | `ci-cd.md` |
 
 ### 제공 프롬프트 (Prompts) — 2개
 | 프롬프트 | 인자 | 동작 |
@@ -252,9 +253,11 @@ host_rules/
 ├── i18n-l10n.md                   # get_i18n_l10n
 ├── concurrency-async.md           # get_concurrency_async
 ├── accessibility.md               # get_accessibility
+├── ci-cd.md                       # get_ci_cd
 └── coding-standards/
     ├── cpp.md                     # get_coding_standards { language: "cpp" }
     ├── typescript.md
+    ├── javascript.md
     ├── python.md
     ├── bash.md
     └── general.md
