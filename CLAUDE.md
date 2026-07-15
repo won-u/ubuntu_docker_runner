@@ -4,7 +4,7 @@
 
 ## 저장소 개요
 
-리눅스 데스크톱(X11) 환경에서 **GUI 애플리케이션과 빌드 도구를 Docker 컨테이너에 격리 실행**하기 위한 스크립트 모음입니다. 각 하위 디렉토리는 독립적인 프로젝트이며, 서로 의존하지 않습니다. 빌드 시스템·패키지 매니저·모노레포 도구는 없고, 순수하게 `Dockerfile` + shell 스크립트로 구성됩니다.
+리눅스 데스크톱(X11) 환경에서 **GUI 애플리케이션·빌드 도구·개인용 서비스를 Docker 컨테이너에 격리 실행**하기 위한 모음입니다. 각 하위 디렉토리는 독립적인 프로젝트이며, 서로 의존하지 않습니다. 모노레포 도구는 없습니다. 대부분은 순수하게 `Dockerfile` + shell 스크립트로 구성되며, **예외로 `mcp_server`만 Node/TypeScript(npm)** 를 사용합니다(빌드·테스트는 컨테이너 안에서 수행 — 호스트에 Node 설치 불필요).
 
 핵심 아이디어: **앱은 컨테이너에 격리하되, 호스트의 X11/오디오/IME/GPU/데이터를 마운트해 네이티브 앱처럼 동작시킨다.**
 
@@ -22,14 +22,21 @@ docker_files/
 ├── kakao/                  # GUI 실행형: Wine 위 카카오톡
 │   ├── Dockerfile.kakao
 │   └── run-kakao.sh
-└── input_leaf/             # 빌드형: Input Leap 소스 컴파일 → 바이너리 추출
-    ├── Dockerfile.builder
-    └── build-input-leap.sh
+├── input_leaf/             # 빌드형: Input Leap 소스 컴파일 → 바이너리 추출
+│   ├── Dockerfile.builder
+│   └── build-input-leap.sh
+└── mcp_server/             # 서비스형: 개인 규칙 MCP 서버 (Node/TypeScript)
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── src/                # Express + Streamable HTTP MCP 서버
+    ├── host_rules/         # 제공 규칙 마크다운 (읽기 전용 마운트)
+    └── docs/               # 아키텍처·도구 안내 등
 ```
 
-프로젝트에는 두 가지 유형이 있습니다.
+프로젝트에는 세 가지 유형이 있습니다.
 - **GUI 실행형** (`firefox`, `kakao`): 컨테이너에서 GUI 앱을 계속 실행. `Dockerfile` + `run-*.sh`.
 - **빌드형** (`input_leaf`): 컨테이너에서 컴파일 후 산출물만 호스트로 복사. `Dockerfile.builder` + `build-*.sh`.
+- **서비스형** (`mcp_server`): 컨테이너로 상시 실행하는 서버. `docker compose` 로 운영하며 GUI·X11 배선을 쓰지 않음. 자체 문서는 [`mcp_server/README.ko.md`](./mcp_server/README.ko.md) 참조.
 
 ## 명령어 (빌드 & 실행)
 
@@ -45,6 +52,10 @@ docker_files/
 # input_leaf (빌드+추출을 스크립트가 모두 수행)
 ./input_leaf/build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
 
+# mcp_server (서비스형 — compose 로 상시 실행)
+cd mcp_server && docker compose up --build -d   # http://localhost:3000/mcp
+curl http://localhost:3000/health
+
 # 수동 빌드가 필요하면:
 cd firefox && docker build -t firefox-ubuntu:latest .
 cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
@@ -55,6 +66,18 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 | firefox | `firefox-ubuntu:latest` | `firefox-gui` | `~/.mozilla_docker`, `~/Downloads/firefox_docker` |
 | kakao | `kakaotalk-ubuntu:latest` | `kakaotalk-gui` | `~/.kakaotalk_docker` |
 | input_leaf | `input-leap-builder` | (임시, `--rm`) | `~/Desktop/InputLeap_Build` |
+| mcp_server | `personal-rules-mcp-server:latest` | `personal-rules-mcp` | `mcp_server/host_rules` (레포 내, 읽기 전용 마운트) |
+
+### mcp_server 작업 시 유의
+- **호스트를 오염시키지 말 것**: `npm` 을 호스트에서 직접 실행하지 않는다. 검증은 컨테이너에서 수행한다.
+  ```bash
+  cd mcp_server && docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD":/app -w /app node:20-alpine \
+    sh -c "npm ci && npm run format:check && npm run lint && npm test && npm run build"
+  # 끝나면 생성된 node_modules/dist 는 제거해 호스트를 깨끗이 유지
+  ```
+- **규칙 추가 시**: `host_rules/<파일>.md` 를 만들고 **반드시 `src/rules.ts` 의 `RULE_TOOLS` 에 등록**한다(등록 안 하면 무결성 테스트의 "고아 파일" 케이스가 실패). 파일명의 하이픈은 도구명에서 언더스코어가 된다(`ci-cd.md` → `get_ci_cd`).
+- 규칙 마크다운만 바꾼 경우 재빌드 불필요(마운트 즉시 반영). 코드 변경 시에는 `docker compose up --build -d`.
 
 ## 아키텍처와 관례
 
@@ -93,12 +116,14 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 - **input_leaf**: GUI 없음. `cmake -DINPUTLEAP_BUILD_TESTS=OFF` 로 테스트 제외, `make -j$(nproc)` 컴파일, `bin/*`을 마운트된 output 폴더로 복사.
 
 ## 네이밍 규칙 (확장 시 필수 준수)
-새 프로젝트는 기존과의 일관성을 위해 아래 규칙을 따릅니다.
+새 **GUI 실행형/빌드형** 프로젝트는 기존과의 일관성을 위해 아래 규칙을 따릅니다.
 - 이미지 태그: `<앱>-ubuntu:latest`
 - 컨테이너 이름(GUI형): `<앱>-gui`
 - 호스트 데이터 폴더: `~/.<앱>_docker`
 - 실행 스크립트: `run-<앱>.sh`, 빌드형은 `build-<앱>.sh`
 - 컨테이너 내부 사용자: `ubuntu` (UID 1000) 고정
+
+> **서비스형 예외**: `mcp_server` 는 GUI 앱이 아니라 위 규칙을 따르지 않습니다(이미지 `personal-rules-mcp-server:latest`, 컨테이너 `personal-rules-mcp`, 데이터는 레포 내 `host_rules/` 마운트, 실행은 `docker compose`). 새 서비스형 프로젝트는 이 패턴을 참고하세요.
 
 ## 새 앱 추가 절차 (Claude용 체크리스트)
 1. `<앱>/` 디렉토리와 `Dockerfile` 생성 — 위 [Dockerfile 공통 패턴] 골격 사용, 기존 파일에서 `ubuntu` 계정 블록을 복사.
@@ -118,3 +143,8 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 
 ## 문서 유지보수
 코드(스크립트/Dockerfile)를 변경하면 README.md와 이 파일의 관련 표(태그·경로·플래그)를 함께 갱신하세요. 특히 이미지 태그, 컨테이너 이름, 호스트 데이터 경로가 바뀌면 두 문서의 표를 동기화해야 합니다.
+
+`mcp_server` 는 **자체 문서 세트**를 가집니다. 도구·규칙·전송 방식이 바뀌면 다음을 함께 갱신하세요.
+- [`mcp_server/README.md`](./mcp_server/README.md) / [`README.ko.md`](./mcp_server/README.ko.md) — 도구 표·host_rules 트리
+- [`mcp_server/docs/tools-and-prompts.ko.md`](./mcp_server/docs/tools-and-prompts.ko.md) — 도구·프롬프트 용도 안내(사용자용)
+- [`mcp_server/docs/architecture.md`](./mcp_server/docs/architecture.md) (+ `.html`) — 도구 개수·엔드포인트·구성

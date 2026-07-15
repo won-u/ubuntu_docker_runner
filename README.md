@@ -1,6 +1,8 @@
 # docker_files
 
-호스트 시스템을 오염시키지 않고 **GUI 애플리케이션과 빌드 도구를 Docker 컨테이너에 격리**해서 실행하기 위한 스크립트 모음입니다. 리눅스 데스크톱(X11) 위에서 컨테이너 안의 앱이 마치 네이티브 앱처럼 화면·소리·한글 입력·데이터 저장을 사용하도록 각종 소켓과 볼륨을 연결하는 것이 핵심입니다.
+호스트 시스템을 오염시키지 않고 **GUI 애플리케이션·빌드 도구·개인용 서비스를 Docker 컨테이너에 격리**해서 실행하기 위한 모음입니다. 리눅스 데스크톱(X11) 위에서 컨테이너 안의 앱이 마치 네이티브 앱처럼 화면·소리·한글 입력·데이터 저장을 사용하도록 각종 소켓과 볼륨을 연결하는 것이 핵심입니다.
+
+프로젝트는 세 유형입니다 — **GUI 실행형**(`firefox`, `kakao`), **빌드형**(`input_leaf`), **서비스형**(`mcp_server`).
 
 ## 목차
 
@@ -10,6 +12,7 @@
   - [firefox — 격리된 Firefox 브라우저](#firefox--격리된-firefox-브라우저)
   - [kakao — Wine 기반 카카오톡](#kakao--wine-기반-카카오톡)
   - [input_leaf — Input Leap 소스 빌드](#input_leaf--input-leap-소스-빌드)
+  - [mcp_server — 개인 규칙 MCP 서버](#mcp_server--개인-규칙-mcp-서버)
 - [공통 개념](#공통-개념)
 - [새 애플리케이션 추가하기 (확장 가이드)](#새-애플리케이션-추가하기-확장-가이드)
 - [트러블슈팅](#트러블슈팅)
@@ -49,12 +52,17 @@ docker_files/
 ├── kakao/            # Wine 위에서 실행하는 카카오톡
 │   ├── Dockerfile.kakao
 │   └── run-kakao.sh
-└── input_leaf/       # Input Leap을 컨테이너에서 빌드 → 바이너리 추출
-    ├── Dockerfile.builder
-    └── build-input-leap.sh
+├── input_leaf/       # Input Leap을 컨테이너에서 빌드 → 바이너리 추출
+│   ├── Dockerfile.builder
+│   └── build-input-leap.sh
+└── mcp_server/       # 개인 규칙 MCP 서버 (서비스형, Node/TypeScript)
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── src/          # 서버 소스
+    └── host_rules/   # 제공하는 규칙 마크다운 (마운트)
 ```
 
-각 GUI 실행형 프로젝트는 **`Dockerfile`(환경 정의)** 과 **실행/빌드 스크립트(런타임 배선)** 으로 구성되며, 배선 로직은 [`lib/common.sh`](./lib/common.sh)에 몸아 중복을 제거했습니다.
+각 GUI 실행형 프로젝트는 **`Dockerfile`(환경 정의)** 과 **실행/빌드 스크립트(런타임 배선)** 으로 구성되며, 배선 로직은 [`lib/common.sh`](./lib/common.sh)에 몸아 중복을 제거했습니다. `mcp_server`는 GUI가 아닌 **상시 실행 서비스**라 `docker compose` 로 운영합니다.
 
 ### firefox — 격리된 Firefox 브라우저
 
@@ -109,6 +117,27 @@ cd input_leaf
 
 - 스크립트가 `input-leap-builder` 이미지 빌드 → 컨테이너에서 `git clone --recursive` → `cmake`(테스트 제외) → `make -j$(nproc)` → 바이너리 복사까지 자동 수행합니다.
 - 결과물 위치: `~/Desktop/InputLeap_Build/`
+
+### mcp_server — 개인 규칙 MCP 서버
+
+GUI 앱이 아니라 **컨테이너로 상시 실행하는 서비스**입니다. 내 개발 규칙(코딩 표준·워크플로우·커밋·리뷰·보안 등)을 [MCP(Model Context Protocol)](https://modelcontextprotocol.io)로 AI 클라이언트(**Claude Code CLI/Web**, Cline, Roo Code)에 제공해, 작업하는 순간 AI가 알아서 규칙을 참조하게 합니다.
+
+**빌드 & 실행**
+```bash
+cd mcp_server
+cp .env.example .env            # 포트·인증 토큰 설정 (선택)
+docker compose up --build -d
+curl http://localhost:3000/health
+```
+
+- 전송: **Streamable HTTP** 단일 엔드포인트 → `http://localhost:3000/mcp`
+- 규칙은 `mcp_server/host_rules/` 를 읽기 전용 마운트 → **마크다운 수정 즉시 반영(재빌드 불필요)**
+- **도구 22종 · 프롬프트 2종** — 각각 무엇을 위한 것인지: [`docs/tools-and-prompts.ko.md`](./mcp_server/docs/tools-and-prompts.ko.md)
+- 클라이언트 등록(CLI): `claude mcp add --transport http personal-rules http://localhost:3000/mcp`
+- 이미지 태그: `personal-rules-mcp-server:latest`, 컨테이너: `personal-rules-mcp`
+- 상세 문서: [`mcp_server/README.ko.md`](./mcp_server/README.ko.md)
+
+> 이 저장소에서 **유일하게 Node/TypeScript(npm)** 를 쓰는 프로젝트입니다. 빌드·테스트·실행이 모두 컨테이너 안에서 이뤄지므로 **호스트에 Node를 설치할 필요가 없습니다.**
 
 ---
 
