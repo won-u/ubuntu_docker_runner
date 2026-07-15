@@ -1,0 +1,11 @@
+# Build output & dependencies
+dist/
+node_modules/
+coverage/
+package-lock.json
+
+# Hand-authored content — not machine-formatted.
+*.md
+host_rules/
+repo-templates/
+docs/

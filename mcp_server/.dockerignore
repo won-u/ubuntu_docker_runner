@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+README.md
+# Never bake the rules into the image — they are bind-mounted at runtime.
+host_rules

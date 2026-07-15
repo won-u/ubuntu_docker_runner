@@ -1,0 +1,29 @@
+services:
+  personal-rules-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: personal-rules-mcp-server:latest
+    container_name: personal-rules-mcp
+    restart: unless-stopped
+    ports:
+      # host:container — override with PORT in .env (defaults to 3000).
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      RULES_DIR: "/app/rules"
+      # Optional Bearer token auth for /mcp. Set MCP_AUTH_TOKEN in a .env file
+      # (gitignored) or the host environment; comma-separate multiple tokens.
+      # If empty, the endpoint is UNAUTHENTICATED (a warning is logged).
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:-}"
+      # Extra allowed browser Origins for DNS-rebinding protection (comma-
+      # separated). Loopback origins and no-Origin (native clients) are always
+      # allowed. Add e.g. https://claude.ai when connecting from Claude Code Web.
+      MCP_ALLOWED_ORIGINS: "${MCP_ALLOWED_ORIGINS:-}"
+    volumes:
+      # Bind-mount the host rules directory into the container (read-only).
+      # An external cron job on the host updates ./host_rules; changes are
+      # reflected immediately without rebuilding or restarting the container.
+      - ./host_rules:/app/rules:ro
+    # The healthcheck is defined once in the Dockerfile (HEALTHCHECK) and
+    # inherited here — single source of truth. Override only if it must differ.

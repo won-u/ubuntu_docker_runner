@@ -1,0 +1,36 @@
+{
+  "name": "personal-rules-mcp-server",
+  "version": "1.0.0",
+  "description": "Personal MCP server exposing my development guidelines and rules to AI clients (Claude Code CLI/Web, Cline, Roo Code, etc.) over Streamable HTTP.",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "NODE_OPTIONS='--import tsx' node --test src/rules.test.ts src/auth.test.ts src/origin.test.ts src/rules-integrity.test.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.19.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}

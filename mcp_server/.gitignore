@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Environment / secrets (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+
+# Claude Code local files (settings, commands; .mcp.json may hold auth tokens)
+.claude/
+.mcp.json
+
+# Local planning / todo files (see host_rules/workflow-rules.md §1)
+plan/
+
+# Test coverage
+coverage/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

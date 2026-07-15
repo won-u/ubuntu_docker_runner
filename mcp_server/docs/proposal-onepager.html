@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Rules MCP 서버 · 내 작업 품질</title>
+<style>
+  :root {
+    --paper: #ECEFF3;
+    --surface: #FFFFFF;
+    --ink: #14181E;
+    --muted: #5C6673;
+    --line: #D7DCE3;
+    --line-strong: #C3CAD3;
+    --accent: #2E63F6;
+    --accent-soft: rgba(46, 99, 246, 0.10);
+    --before: #8A93A1;
+    --shadow: 0 1px 2px rgba(20, 24, 30, 0.04), 0 8px 24px rgba(20, 24, 30, 0.06);
+    --radius: 12px;
+    --maxw: 960px;
+    --sans: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0C0F13;
+      --surface: #14181F;
+      --ink: #E7ECF3;
+      --muted: #96A0AE;
+      --line: #242B34;
+      --line-strong: #313A46;
+      --accent: #6E9BFF;
+      --accent-soft: rgba(110, 155, 255, 0.14);
+      --before: #5A6472;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #ECEFF3; --surface: #FFFFFF; --ink: #14181E; --muted: #5C6673;
+    --line: #D7DCE3; --line-strong: #C3CAD3; --accent: #2E63F6;
+    --accent-soft: rgba(46, 99, 246, 0.10); --before: #8A93A1;
+    --shadow: 0 1px 2px rgba(20, 24, 30, 0.04), 0 8px 24px rgba(20, 24, 30, 0.06);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0C0F13; --surface: #14181F; --ink: #E7ECF3; --muted: #96A0AE;
+    --line: #242B34; --line-strong: #313A46; --accent: #6E9BFF;
+    --accent-soft: rgba(110, 155, 255, 0.14); --before: #5A6472;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eyebrow .dot { color: var(--accent); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 22px 0; border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .brand { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; color: var(--ink); }
+  .brand b { color: var(--accent); }
+  .tag {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 10px;
+  }
+
+  /* ---- hero ---- */
+  .hero { padding: 72px 0 40px; }
+  .hero h1 {
+    font-size: clamp(30px, 5.4vw, 54px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 18px 0 0;
+  }
+  .hero h1 .u {
+    background: linear-gradient(transparent 62%, var(--accent-soft) 62%);
+    box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  }
+  .hero p.lead {
+    max-width: 60ch;
+    font-size: clamp(16px, 2vw, 19px);
+    color: var(--muted);
+    margin: 22px 0 0;
+  }
+  .hero p.lead strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- section scaffolding ---- */
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .sec-head h2 {
+    font-size: clamp(20px, 2.6vw, 26px); font-weight: 700; letter-spacing: -0.01em;
+    margin: 0; text-wrap: balance;
+  }
+  .sec-note { color: var(--muted); font-size: 14px; }
+
+  /* ---- centerpiece viz ---- */
+  .viz-block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .viz {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: stretch;
+    gap: 0;
+  }
+  .panel { padding: 26px 22px 22px; display: flex; flex-direction: column; }
+  .panel--before { background: transparent; }
+  .panel--after { background: var(--accent-soft); border-left: 1px solid var(--line); }
+  .panel__label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .panel--after .panel__label { color: var(--accent); }
+
+  .chaos { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-content: center; min-height: 150px; }
+  .cell {
+    font-family: var(--mono); font-size: 13px; color: var(--before);
+    background: var(--paper); border: 1px dashed var(--line-strong); border-radius: 7px;
+    padding: 7px 11px; display: inline-block;
+  }
+  .cell.c1 { transform: rotate(-5deg); }
+  .cell.c2 { transform: rotate(3deg) scale(1.08); opacity: 0.85; }
+  .cell.c3 { transform: rotate(7deg); font-size: 11px; }
+  .cell.c4 { transform: rotate(-2deg) scale(1.12); opacity: 0.7; }
+  .cell.c5 { transform: rotate(4deg); font-size: 15px; }
+  .cell.c6 { transform: rotate(-8deg); opacity: 0.8; }
+
+  .order { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: center; min-height: 150px; }
+  .ucell {
+    font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 6px;
+    padding: 8px 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .arrow {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 22px; padding: 0 8px; min-width: 44px;
+    border-left: 1px solid var(--line);
+  }
+  .panel__cap { margin-top: 16px; font-size: 13.5px; font-weight: 600; }
+  .panel--before .panel__cap { color: var(--muted); }
+  .panel--after .panel__cap { color: var(--accent); }
+
+  .viz-legend {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+    background: var(--line); border-top: 1px solid var(--line);
+  }
+  .viz-legend div { background: var(--surface); padding: 16px 22px; font-size: 14px; }
+  .viz-legend b { display: block; font-size: 12px; font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 5px; }
+  .viz-legend .kill b { color: var(--muted); }
+  .viz-legend .keep b { color: var(--accent); }
+
+  /* ---- two cards ---- */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0 0 6px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .who { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 8px; }
+  .card p { margin: 10px 0 0; color: var(--muted); font-size: 14.5px; }
+  .card p strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- flow list ---- */
+  .flow { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .flow .row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; background: var(--surface); padding: 13px 18px; }
+  .flow .when { color: var(--muted); font-size: 14px; }
+  .flow .to { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+  .flow .then { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .flow .then::before { content: ""; }
+
+  /* ---- chips ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    font-size: 13.5px; padding: 8px 13px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .chip .st { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; }
+  .chip.live { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); }
+  .chip.live .st { color: var(--accent); }
+  .chip.soon { opacity: 0.72; }
+  .chip.soon .st { color: var(--muted); }
+
+  /* ---- before/after strip ---- */
+  .ba { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .ba .barow { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 14px; background: var(--surface); padding: 13px 18px; align-items: center; font-size: 14px; }
+  .ba .barow.head { background: var(--paper); }
+  .ba .k { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); text-transform: uppercase; }
+  .ba .b { color: var(--muted); }
+  .ba .a { color: var(--ink); font-weight: 600; }
+  .ba .head .b, .ba .head .a { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 400; }
+  .ba .head .a { color: var(--accent); }
+
+  /* ---- status + ask ---- */
+  .foot-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; }
+  .status {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px; box-shadow: var(--shadow);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+    background: var(--accent-soft); border-radius: 999px; padding: 5px 11px;
+  }
+  .badge .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .status p { margin: 14px 0 0; font-size: 14.5px; color: var(--muted); }
+  .status p strong { color: var(--ink); font-weight: 600; }
+  .asklist { list-style: none; margin: 0; padding: 0; counter-reset: ask; display: flex; flex-direction: column; gap: 12px; }
+  .asklist li {
+    position: relative; padding-left: 42px; font-size: 14.5px;
+  }
+  .asklist li::before {
+    counter-increment: ask; content: counter(ask, decimal-leading-zero);
+    position: absolute; left: 0; top: -1px; font-family: var(--mono); font-size: 12px;
+    color: var(--accent); border: 1px solid var(--line-strong); border-radius: 7px;
+    width: 30px; height: 26px; display: flex; align-items: center; justify-content: center;
+  }
+  .asklist li strong { font-weight: 600; }
+
+  /* ---- closing ---- */
+  .closing { padding: 46px 0 64px; border-top: 1px solid var(--line); }
+  .closing blockquote {
+    margin: 0; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.4; font-weight: 600;
+    letter-spacing: -0.01em; text-wrap: balance; border-left: 3px solid var(--accent);
+    padding-left: 20px; color: var(--ink);
+  }
+  .closing blockquote .m { color: var(--accent); }
+
+  /* ---- load motion ---- */
+  .rise { animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .rise.d1 { animation-delay: 0.05s; }
+  .rise.d2 { animation-delay: 0.12s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---- responsive ---- */
+  @media (max-width: 720px) {
+    .viz { grid-template-columns: 1fr; }
+    .panel--after { border-left: none; border-top: 1px solid var(--line); }
+    .arrow { border-left: none; border-top: 1px solid var(--line); transform: rotate(90deg); min-height: 40px; }
+    .cards, .foot-grid, .viz-legend, .order { grid-template-columns: 1fr; }
+    .flow .row { grid-template-columns: 1fr; gap: 6px; }
+    .flow .arrow-min { display: none; }
+    .ba .barow { grid-template-columns: 1fr; gap: 4px; }
+    .ba .barow.head { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <span class="brand">Personal Rules <b>MCP</b> Server</span>
+    <span class="tag">내 작업 품질 · 1p</span>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="eyebrow rise"><span class="dot">●</span> 왜 이걸 만드나</div>
+    <h1 class="rise d1">프로젝트가 여러 개여도,<br><span class="u">한 결로 만든 것처럼.</span></h1>
+    <p class="lead rise d2">
+      규칙을 위키에 재워두지 말고, <strong>AI가 작업하는 순간 자동으로 적용</strong>합니다.
+      그러면 제멋대로인 부분은 사라지고 잘하는 지점에서만 달라지는 —
+      <strong>동일하지는 않아도 균일한</strong> 결과물이 나옵니다.
+    </p>
+  </header>
+
+  <!-- CENTERPIECE -->
+  <section>
+    <div class="sec-head">
+      <h2>중구난방은 없애되, 개성은 살린다</h2>
+      <span class="sec-note">같은 요청 · 다른 결과 (커밋 메시지 예시)</span>
+    </div>
+
+    <div class="viz-block">
+      <div class="viz">
+        <div class="panel panel--before">
+          <div class="panel__label">규칙 없음</div>
+          <div class="chaos">
+            <span class="cell c1">fix</span>
+            <span class="cell c2">修正</span>
+            <span class="cell c3">wip</span>
+            <span class="cell c4">Update code</span>
+            <span class="cell c5">버그수정</span>
+            <span class="cell c6">tmp</span>
+          </div>
+          <div class="panel__cap">제각각 · 중구난방</div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">→</div>
+
+        <div class="panel panel--after">
+          <div class="panel__label">규칙 적용</div>
+          <div class="order">
+            <span class="ucell">feat(auth): …</span>
+            <span class="ucell">fix(api): …</span>
+            <span class="ucell">docs(readme): …</span>
+            <span class="ucell">refactor(db): …</span>
+            <span class="ucell">test(core): …</span>
+            <span class="ucell">chore(ci): …</span>
+          </div>
+          <div class="panel__cap">동일하지 않지만 균일</div>
+        </div>
+      </div>
+
+      <div class="viz-legend">
+        <div class="kill"><b>없애야 할 다름 — 노이즈</b>형식·네이밍·구조·목차·브랜치 이름. 습관 차이일 뿐, 정보 가치 0. 리뷰어만 피곤하게 만든다.</div>
+        <div class="keep"><b>살려야 할 다름 — 실력</b>알고리즘 선택, 설계 분할, 트레이드오프 판단. 개성이 드러나야 하는 지점은 그대로 둔다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHO GAINS -->
+  <section>
+    <div class="sec-head"><h2>누가 무엇을 얻는가</h2></div>
+    <div class="cards">
+      <div class="card">
+        <h3><span class="who">작업 효율</span></h3>
+        <p>몰랐거나 깜빡한 규칙도 AI가 챙겨 줍니다 → <strong>리뷰에서 덜 지적받고 재작업이 줄어듭니다.</strong> 새 프로젝트에 가도 "여기서는 이렇게 한다"를 도구가 바로 알려 주니 노트를 뒤질 필요가 없습니다.</p>
+      </div>
+      <div class="card">
+        <h3><span class="who">일관성</span></h3>
+        <p>매번 기준을 떠올려 강제하지 않아도 <strong>알아서 균일하게 맞춰집니다.</strong> 리뷰 시간을 스타일 지적이 아니라 설계·로직에 쓰고, 내 노하우가 흩어지지 않고 <strong>한 곳에 규칙으로 남습니다.</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section>
+    <div class="sec-head">
+      <h2>어떻게 동작하나</h2>
+      <span class="sec-note">AI가 상황에 맞는 규칙을 자동 참조 · 개발자는 평소대로</span>
+    </div>
+    <div class="flow">
+      <div class="row"><span class="when">코드 작성 전</span><span class="arrow-min" aria-hidden="true">→</span><span class="to">get_coding_standards</span></div>
+      <div class="row"><span class="when">커밋 / PR 전</span><span class="arrow-min" aria-hidden="true">→</span><span class="to">get_commit_guidelines</span></div>
+      <div class="row"><span class="when">완료 판정 전</span><span class="arrow-min" aria-hidden="true">→</span><span class="to">get_definition_of_done</span></div>
+      <div class="row"><span class="when">비밀·입력·의존성 처리</span><span class="arrow-min" aria-hidden="true">→</span><span class="to">get_security_guidelines</span></div>
+      <div class="row"><span class="when">코드 리뷰</span><span class="arrow-min" aria-hidden="true">→</span><span class="to">get_code_review_guidelines</span></div>
+    </div>
+  </section>
+
+  <!-- SCOPE -->
+  <section>
+    <div class="sec-head">
+      <h2>코드만이 아니라 전방위</h2>
+      <span class="sec-note">새 영역 = 마크다운 파일 하나 추가</span>
+    </div>
+    <div class="chips">
+      <span class="chip live"><span class="st">LIVE</span> 코딩 표준</span>
+      <span class="chip live"><span class="st">LIVE</span> 워크플로우</span>
+      <span class="chip live"><span class="st">LIVE</span> 커밋·형상관리</span>
+      <span class="chip live"><span class="st">LIVE</span> 완료 기준(DoD)</span>
+      <span class="chip live"><span class="st">LIVE</span> 보안</span>
+      <span class="chip live"><span class="st">LIVE</span> 코드 리뷰</span>
+      <span class="chip live"><span class="st">LIVE</span> 문서 작성</span>
+      <span class="chip live"><span class="st">LIVE</span> 다이어그램</span>
+      <span class="chip live"><span class="st">LIVE</span> 브랜치·릴리즈</span>
+      <span class="chip live"><span class="st">LIVE</span> 테스트 표준</span>
+      <span class="chip live"><span class="st">LIVE</span> API 설계</span>
+      <span class="chip live"><span class="st">LIVE</span> 의존성 관리</span>
+      <span class="chip live"><span class="st">LIVE</span> 로깅·관측성</span>
+      <span class="chip live"><span class="st">LIVE</span> 설정·환경 관리</span>
+      <span class="chip live"><span class="st">LIVE</span> 데이터·영속성</span>
+      <span class="chip live"><span class="st">LIVE</span> 에러 처리·복원력</span>
+      <span class="chip live"><span class="st">LIVE</span> 성능·효율</span>
+      <span class="chip live"><span class="st">LIVE</span> AI 보조 코딩</span>
+      <span class="chip live"><span class="st">LIVE</span> 국제화·현지화</span>
+      <span class="chip live"><span class="st">LIVE</span> 동시성·비동기</span>
+      <span class="chip live"><span class="st">LIVE</span> 접근성(a11y)</span>
+    </div>
+  </section>
+
+  <!-- BEFORE / AFTER -->
+  <section>
+    <div class="sec-head"><h2>무엇이 달라지는가</h2></div>
+    <div class="ba">
+      <div class="barow head"><span class="k">항목</span><span class="b">Before</span><span class="a">After</span></div>
+      <div class="barow"><span class="k">표준 실효성</span><span class="b">위키엔 있으나 작업엔 미반영</span><span class="a">작업하는 순간 자동 적용</span></div>
+      <div class="barow"><span class="k">품질 편차</span><span class="b">사람·프로젝트마다 제각각</span><span class="a">형태는 균일, 알맹이는 각자</span></div>
+      <div class="barow"><span class="k">리뷰</span><span class="b">같은 형식 지적 반복</span><span class="a">형식은 통과, 리뷰는 본질로</span></div>
+      <div class="barow"><span class="k">온보딩</span><span class="b">암묵지 습득에 시간</span><span class="a">도구가 표준을 즉시 안내</span></div>
+      <div class="barow"><span class="k">유지보수</span><span class="b">표준이 여러 곳에 흩어짐</span><span class="a">한 곳만 수정 → 전원 반영</span></div>
+    </div>
+  </section>
+
+  <!-- STATUS + ASK -->
+  <section>
+    <div class="sec-head"><h2>지금 상태와 다음 단계</h2></div>
+    <div class="foot-grid">
+      <div class="status">
+        <span class="badge"><span class="pulse"></span> 이미 동작 중</span>
+        <p>Streamable HTTP MCP 서버(단일 <code>/mcp</code> 엔드포인트)에 <strong>도구 21개 · 프롬프트 2개</strong>가 등록되어 있고, 토큰 인증·Docker 배포·마크다운 무재빌드 갱신·한/영 문서까지 갖춰져 있습니다. <strong>PoC가 아니라 지금 시연 가능</strong>합니다.</p>
+        <p style="margin-top:12px;font-size:13px;">유의: 이 서버는 <strong>강제가 아니라 유도</strong>입니다. 최종 강제선(CI·린트·리뷰)은 그대로 두고, 그 앞단에서 위반 자체를 줄이는 <strong>보완</strong>입니다.</p>
+      </div>
+      <div>
+        <ol class="asklist">
+          <li><strong>먼저 적용할</strong> 프로젝트 1개를 고릅니다.</li>
+          <li>각 영역 baseline 문서를 <strong>내 실제 정책</strong>으로 채웁니다.</li>
+          <li>해당 프로젝트에서 <strong>클라이언트 등록</strong>(1회 설정)을 마칩니다.</li>
+          <li>얼마간 써 본 뒤 <strong>효과를 점검</strong>하고 나머지 프로젝트로 확산을 결정합니다.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    <blockquote>
+      표준을 문서로 재워두지 말고, AI가 작업하는 순간 자동으로 쓰게 하자.
+      그러면 <span class="m">제멋대로는 사라지고 잘하는 데서만 다른</span> — 내 모든 프로젝트의 품질이 기억력에 의존하지 않고 올라간다.
+    </blockquote>
+  </div>
+
+</div>
+</body>
+</html>

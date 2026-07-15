@@ -1,0 +1,12 @@
+{
+  "//": "Copy to .mcp.json (gitignored) or commit to a project repo to expose this server to Claude Code Web. The token is expanded from the MCP_TOKEN env var at runtime — never commit a real token. For a local run without auth, drop the 'headers' block.",
+  "mcpServers": {
+    "personal-rules": {
+      "type": "http",
+      "url": "https://<your-host>/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MCP_TOKEN}"
+      }
+    }
+  }
+}
