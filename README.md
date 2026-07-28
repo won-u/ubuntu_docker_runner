@@ -2,7 +2,7 @@
 
 호스트 시스템을 오염시키지 않고 **GUI 애플리케이션·빌드 도구·개인용 서비스를 Docker 컨테이너에 격리**해서 실행하기 위한 모음입니다. 리눅스 데스크톱(X11) 위에서 컨테이너 안의 앱이 마치 네이티브 앱처럼 화면·소리·한글 입력·데이터 저장을 사용하도록 각종 소켓과 볼륨을 연결하는 것이 핵심입니다.
 
-프로젝트는 세 유형입니다 — **GUI 실행형**(`firefox`, `kakao`), **빌드형**(`input_leaf`), **서비스형**(`mcp_server`).
+프로젝트는 세 유형입니다 — **GUI 실행형**(`firefox`, `kakao`, `android_studio`), **빌드형**(`input_leaf`), **서비스형**(`mcp_server`).
 
 ## 목차
 
@@ -11,6 +11,7 @@
 - [프로젝트 구성](#프로젝트-구성)
   - [firefox — 격리된 Firefox 브라우저](#firefox--격리된-firefox-브라우저)
   - [kakao — Wine 기반 카카오톡](#kakao--wine-기반-카카오톡)
+  - [android_studio — 컨테이너화된 Android Studio](#android_studio--컨테이너화된-android-studio)
   - [input_leaf — Input Leap 소스 빌드](#input_leaf--input-leap-소스-빌드)
   - [mcp_server — 개인 규칙 MCP 서버](#mcp_server--개인-규칙-mcp-서버)
 - [공통 개념](#공통-개념)
@@ -52,6 +53,9 @@ docker_files/
 ├── kakao/            # Wine 위에서 실행하는 카카오톡
 │   ├── Dockerfile.kakao
 │   └── run-kakao.sh
+├── android_studio/   # 컨테이너화된 Android Studio (SDK/AVD/소스 영속화)
+│   ├── Dockerfile
+│   └── run-android-studio.sh
 ├── input_leaf/       # Input Leap을 컨테이너에서 빌드 → 바이너리 추출
 │   ├── Dockerfile.builder
 │   └── build-input-leap.sh
@@ -104,6 +108,32 @@ docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 - Wine 프리픽스(카카오톡 설치본·설정 포함): `~/.kakaotalk_docker` (호스트에 저장 → 재로그인 유지)
 - 첫 실행은 Wine 초기화 + 카카오톡 설치 마법사가 뜨므로 시간이 걸립니다.
 - 이미지 태그: `kakaotalk-ubuntu:latest`
+
+### android_studio — 컨테이너화된 Android Studio
+
+Google 공식 tar.gz로 설치한 Android Studio를 컨테이너에서 실행합니다. 소스코드 워크스페이스와 SDK/AVD/Gradle 캐시 등 대용량 데이터를 **서로 다른 호스트 경로로 분리**해 영속화하고, `/dev/kvm` 패스스루로 에뮬레이터 하드웨어 가속을 지원합니다.
+
+**빌드**
+```bash
+cd android_studio
+docker build -t android-studio-ubuntu:latest .
+```
+
+**실행**
+```bash
+./run-android-studio.sh                                          # 기본 경로 사용
+ANDROID_STUDIO_SRC_DIR=~/dev/android ./run-android-studio.sh      # 소스 경로 변경
+ANDROID_STUDIO_DATA_DIR=~/android_data ./run-android-studio.sh    # 데이터 경로 변경
+```
+
+> 실행 스크립트는 이미지가 없으면 **자동으로 `docker build`** 합니다.
+
+- 소스 워크스페이스: 기본 `/obigo/projects/android` (호스트, `ANDROID_STUDIO_SRC_DIR`로 재정의 가능) ↔ `/home/ubuntu/AndroidStudioProjects` (컨테이너) — 프로젝트 소스코드는 여기 저장됩니다.
+- 데이터 영속화: 기본 `/obigo/android_data` (호스트, `ANDROID_STUDIO_DATA_DIR`로 재정의 가능) ↔ `/home/ubuntu` (컨테이너 홈 전체) — Android SDK, AVD, Gradle 캐시, IDE 설정을 포함합니다.
+- 에뮬레이터(AVD)를 KVM 가속으로 실행하려면 호스트에 `/dev/kvm`이 있어야 합니다(없으면 경고 후 소프트웨어 렌더링으로 동작).
+- 컨테이너는 `--user root`로 뜬 뒤 `/run/user/1000` 소유권을 `ubuntu`로 고치고 나서 `runuser`로 전환해 `studio.sh`를 실행합니다(D-Bus/PulseAudio 소켓을 `/run/user/1000/...` 경로에 바인드 마운트하면 Docker가 상위 디렉토리를 root 소유로 자동 생성해버려, 그대로 두면 에뮬레이터가 `Failed to create jwk directory`로 죽습니다).
+- Android Studio 버전을 올리려면 [`Dockerfile`](./android_studio/Dockerfile)의 `ANDROID_STUDIO_VERSION`/`ANDROID_STUDIO_FILENAME` ARG를 [최신 archive](https://developer.android.com/studio/archive) 기준으로 갱신하세요(파일명이 버전 문자열이 아닌 코드네임 기반일 수 있음, 예: `android-studio-quail2-linux.tar.gz`).
+- 이미지 태그: `android-studio-ubuntu:latest`
 
 ### input_leaf — Input Leap 소스 빌드
 

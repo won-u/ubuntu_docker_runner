@@ -22,6 +22,9 @@ docker_files/
 ├── kakao/                  # GUI 실행형: Wine 위 카카오톡
 │   ├── Dockerfile.kakao
 │   └── run-kakao.sh
+├── android_studio/         # GUI 실행형: 컨테이너화된 Android Studio
+│   ├── Dockerfile
+│   └── run-android-studio.sh
 ├── input_leaf/             # 빌드형: Input Leap 소스 컴파일 → 바이너리 추출
 │   ├── Dockerfile.builder
 │   └── build-input-leap.sh
@@ -49,6 +52,9 @@ docker_files/
 # kakao (이미지 없으면 스크립트가 자동 빌드)
 ./kakao/run-kakao.sh
 
+# android_studio (이미지 없으면 스크립트가 자동 빌드; 소스 경로는 ANDROID_STUDIO_SRC_DIR로 재정의 가능)
+./android_studio/run-android-studio.sh
+
 # input_leaf (빌드+추출을 스크립트가 모두 수행)
 ./input_leaf/build-input-leap.sh   # 결과: ~/Desktop/InputLeap_Build/
 
@@ -59,12 +65,14 @@ curl http://localhost:3000/health
 # 수동 빌드가 필요하면:
 cd firefox && docker build -t firefox-ubuntu:latest .
 cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
+cd android_studio && docker build -t android-studio-ubuntu:latest .
 ```
 
 | 프로젝트 | 이미지 태그 | 컨테이너 이름 | 호스트 데이터 경로 |
 |----------|-------------|----------------|--------------------|
 | firefox | `firefox-ubuntu:latest` | `firefox-gui` | `~/.mozilla_docker`, `~/Downloads/firefox_docker` |
 | kakao | `kakaotalk-ubuntu:latest` | `kakaotalk-gui` | `~/.kakaotalk_docker` |
+| android_studio | `android-studio-ubuntu:latest` | `android-studio-gui` | `/obigo/android_data` (SDK/AVD/설정), `/obigo/projects/android` (소스) — 각각 `ANDROID_STUDIO_DATA_DIR`/`ANDROID_STUDIO_SRC_DIR`로 재정의 가능 |
 | input_leaf | `input-leap-builder` | (임시, `--rm`) | `~/Desktop/InputLeap_Build` |
 | mcp_server | `personal-rules-mcp-server:latest` | `personal-rules-mcp` | `mcp_server/host_rules` (레포 내, 읽기 전용 마운트) |
 
@@ -83,7 +91,7 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 
 ### Dockerfile 공통 패턴
 모든 `Dockerfile`은 동일한 골격을 따릅니다. 새 파일 작성 시 이 순서를 유지하세요.
-1. `FROM ubuntu:<버전>` — `kakao`는 안정성 위해 24.04 LTS, `firefox`/`input_leaf`는 26.04 사용
+1. `FROM ubuntu:<버전>` — `kakao`/`android_studio`는 안정성 위해 24.04 LTS, `firefox`/`input_leaf`는 26.04 사용
 2. `ENV DEBIAN_FRONTEND=noninteractive`
 3. 패키지 설치 (앱 + 한글 로캘/폰트/IME)
 4. `locale-gen ko_KR.UTF-8` + `LANG`/`LANGUAGE`/`LC_ALL` 환경변수
@@ -96,7 +104,7 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 2. `require_docker` / `require_x11` 로 전제 조건 검증(docker 데몬, DISPLAY 등)
 3. `resolve_host_paths` 로 USER_UID/HOST_DBUS_PATH/IBUS_SOCKET_PATH/XAUTH 계산, `allow_x_access`(xhost +local:docker)
 4. `ensure_image`로 이미지 없으면 자동 빌드, `remove_stale_container`로 찌꺼기 정리
-5. `wire_data`/`wire_display`/`wire_audio`/`wire_ime`/`wire_gpu`/`wire_locale` 로 **소켓이 존재할 때만 조건부 마운트** 배열(`DOCKER_MOUNTS`/`DOCKER_ENVS`/`DOCKER_DEVICES`)에 누적
+5. `wire_data`/`wire_display`/`wire_audio`/`wire_ime`/`wire_gpu`/`wire_kvm`/`wire_locale` 로 **소켓이 존재할 때만 조건부 마운트** 배열(`DOCKER_MOUNTS`/`DOCKER_ENVS`/`DOCKER_DEVICES`)에 누적
 6. 마지막에 `exec docker run ... --rm` — 배열을 전개하고 종료 시 컨테이너 자동 삭제(데이터는 볼륨에 남음)
 
 ### 컨테이너에 전달하는 리소스 (배선 규칙)
@@ -106,6 +114,7 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 | X 인증 | `-v "$XAUTH:$XAUTH:ro"`, `-e XAUTHORITY=$XAUTH` |
 | 오디오 | `-v "$XDG_RUNTIME_DIR/pulse/native:..."`, `-e PULSE_SERVER=...`, `--device /dev/snd` |
 | GPU | `--device /dev/dri` (firefox) |
+| KVM(에뮬레이터 가속) | `--device /dev/kvm --group-add "$(stat -c '%g' /dev/kvm)"` (android_studio) |
 | IME | ibus 소켓/D-Bus 마운트, `-e GTK_IM_MODULE=xim -e QT_IM_MODULE=xim -e XMODIFIERS=@im=ibus` |
 | 로캘 | `-e LANG=ko_KR.UTF-8` 등 |
 | 데이터 | `-v "$HOME/.앱_docker:/home/ubuntu/..."` |
@@ -113,6 +122,8 @@ cd kakao   && docker build -t kakaotalk-ubuntu:latest -f Dockerfile.kakao .
 ### 앱별 특이사항
 - **firefox**: 실행 중이면 `docker exec`로 기존 인스턴스에 옵션 전달(싱글 인스턴스). 시작 전 `.parentlock`/`lock` 파일을 삭제해 프로필 잠금 에러 방지. `--net=host --ipc=host --shm-size=2g`, seccomp/apparmor unconfined 사용.
 - **kakao**: 컨테이너 진입 후 `START_CMD`(인라인 bash)로 Wine 초기화 → 폰트 치환 레지스트리(`font.reg`) 적용 → 카카오톡 최초 실행 시 CDN에서 설치파일 다운로드 후 설치, 이후엔 직접 실행. Wine 프리픽스 전체를 `~/.kakaotalk_docker`에 영속화. `TZ=Asia/Seoul` 설정.
+- **android_studio**: Dockerfile에서 Google 공식 tar.gz(`ANDROID_STUDIO_VERSION`/`ANDROID_STUDIO_FILENAME`/`ANDROID_STUDIO_URL` ARG로 버전 고정, `/opt/android-studio`에 압축 해제)를 설치. 파일명이 버전 문자열이 아닌 코드네임 기반일 수 있어(예: `android-studio-quail2-linux.tar.gz`) `ANDROID_STUDIO_VERSION`(경로용)과 `ANDROID_STUDIO_FILENAME`(실제 파일명)을 분리해 관리한다. 컨테이너 홈 전체(`/home/ubuntu`)를 `ANDROID_STUDIO_DATA_DIR`(기본 `/obigo/android_data`)에 영속화해 SDK/AVD/Gradle 캐시/IDE 설정을 보존하고, 그 안의 `AndroidStudioProjects` 서브디렉토리만 별도 호스트 경로(`ANDROID_STUDIO_SRC_DIR`, 기본 `/obigo/projects/android`)로 다시 마운트해 소스코드 저장 위치를 분리. 에뮬레이터 가속은 `lib/common.sh`의 `wire_kvm`(호스트 `/dev/kvm` 존재 시 `--device /dev/kvm` + 해당 GID를 `--group-add`)로 처리하며, 이미지 안에 별도 `kvm` 그룹을 만들지 않는다. Android Studio 버전을 올릴 때는 Dockerfile의 ARG만 갱신하면 됨(README.md 표와 동기화).
+  - **`/run/user/1000` 권한 self-heal**: `wire_ime`/`wire_audio`가 `/run/user/1000/bus`, `/run/user/1000/pulse/native` 처럼 `/run/user/1000` 하위 경로를 직접 바인드 마운트하는데, 대상 상위 디렉토리가 컨테이너 안에 없으면 dockerd가 그 자리에서 **root 소유로 자동 생성**해버린다. 그 상태로 `ubuntu`가 `studio.sh`를 돌리면 에뮬레이터가 그 아래 `avd/running/<pid>/jwks/...`를 만들지 못해 `Failed to create jwk directory` 로 죽는다. 그래서 `run-android-studio.sh`는 컨테이너를 `--user root` + `--entrypoint bash`로 띄운 뒤, `/run/user/1000`(하위 바인드 마운트는 건드리지 않고 최상위 디렉토리만)을 `ubuntu:ubuntu`/`0700`으로 고치고 `runuser -u ubuntu -- studio.sh`로 전환해서 실행한다. Dockerfile의 `ENV`(PATH/HOME/ANDROID_HOME 등)는 `--user` 오버라이드와 무관하게 그대로 적용되므로 이 전환으로 인한 환경변수 유실은 없다.
 - **input_leaf**: GUI 없음. `cmake -DINPUTLEAP_BUILD_TESTS=OFF` 로 테스트 제외, `make -j$(nproc)` 컴파일, `bin/*`을 마운트된 output 폴더로 복사.
 
 ## 네이밍 규칙 (확장 시 필수 준수)

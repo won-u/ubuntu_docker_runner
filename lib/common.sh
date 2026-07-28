@@ -111,6 +111,17 @@ wire_gpu() {
     fi
 }
 
+# KVM 하드웨어 가속 (Android 에뮬레이터 등, 존재할 때만)
+# 호스트 /dev/kvm의 그룹 GID를 컨테이너 프로세스의 supplementary group으로 추가해
+# 이미지 안에 별도 kvm 그룹을 만들지 않고도 접근 권한을 맞춘다.
+wire_kvm() {
+    if [ -e /dev/kvm ]; then
+        DOCKER_DEVICES+=( --device /dev/kvm --group-add "$(stat -c '%g' /dev/kvm)" )
+    else
+        log_warn "/dev/kvm 이 없어 하드웨어 가속 에뮬레이션을 사용할 수 없습니다(에뮬레이터가 느려지거나 실행되지 않을 수 있음)."
+    fi
+}
+
 # 한글 로캘 환경변수
 wire_locale() {
     DOCKER_ENVS+=( -e "LANG=ko_KR.UTF-8" -e "LANGUAGE=ko_KR:ko" -e "LC_ALL=ko_KR.UTF-8" )
