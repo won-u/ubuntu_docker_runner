@@ -1,9 +1,9 @@
 /**
- * DC Inside Gallery Scraper Module for MCP Server (Dark Theme & Full Authors)
- * ---------------------------------------------------------------------------
- * Fetches latest posts from any DC Inside gallery (e.g. denim, fashion_new1)
- * with title, body, embedded images, comment authors, and comments in a Dark Theme
- * collapsible Markdown format.
+ * DC Inside Gallery Scraper Module for MCP Server (Base64 Inline Images & Dark Theme)
+ * -----------------------------------------------------------------------------------
+ * Fetches latest posts from any DC Inside gallery with title, body, embedded Base64
+ * images (to bypass DC Inside 403 hotlink protection), comment authors, and comments
+ * in a Dark Theme collapsible Markdown format.
  */
 
 const USER_AGENT =
@@ -15,6 +15,11 @@ export interface DcComment {
   text: string;
 }
 
+export interface DcImage {
+  src: string; // Base64 data URI or original URL
+  originalUrl: string;
+}
+
 export interface DcPost {
   id: string;
   title: string;
@@ -23,9 +28,45 @@ export interface DcPost {
   views: string;
   commentsCount: number;
   body: string;
-  images: string[];
+  images: DcImage[];
   comments: DcComment[];
   url: string;
+}
+
+/**
+ * Fetch image with DC Inside referer header and convert to Base64 Data URI
+ * to prevent 403 Forbidden hotlink blocks in Markdown viewers.
+ */
+async function fetchImageAsBase64(imgUrl: string): Promise<string> {
+  try {
+    const res = await fetch(imgUrl, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Referer: "https://m.dcinside.com/",
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+
+    if (!res.ok) return imgUrl;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Limit individual image size to 2MB to keep payload fast
+    if (buffer.length > 2 * 1024 * 1024 || buffer.length === 0) {
+      return imgUrl;
+    }
+
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const mime = contentType.includes("gif")
+      ? "image/gif"
+      : contentType.includes("png")
+        ? "image/png"
+        : "image/jpeg";
+
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  } catch {
+    return imgUrl;
+  }
 }
 
 /**
@@ -116,22 +157,32 @@ export async function fetchDcInsideGallery(
           .trim();
       }
 
-      // 5. Images
-      const images: string[] = [];
+      // 5. Images (Download and convert to Base64 to bypass 403)
+      const rawImageUrls: string[] = [];
       const ogImgMatch = pHtml.match(
         /<meta\s+property="og:image"\s+content="([^"]+)"/,
       );
       if (ogImgMatch && ogImgMatch[1].includes("viewimage")) {
-        images.push(ogImgMatch[1]);
+        rawImageUrls.push(ogImgMatch[1]);
       }
 
       const originalImgRegex = /data-original=["']([^"']+)["']/g;
       let origMatch: RegExpExecArray | null;
       while ((origMatch = originalImgRegex.exec(pHtml)) !== null) {
         const iUrl = origMatch[1].replace(/&amp;/g, "&");
-        if (iUrl.includes("viewimage") && !images.includes(iUrl)) {
-          images.push(iUrl);
+        if (iUrl.includes("viewimage") && !rawImageUrls.includes(iUrl)) {
+          rawImageUrls.push(iUrl);
         }
+      }
+
+      // Download up to 3 images per post as Base64
+      const images: DcImage[] = [];
+      for (const imgUrl of rawImageUrls.slice(0, 3)) {
+        const b64Data = await fetchImageAsBase64(imgUrl);
+        images.push({
+          src: b64Data,
+          originalUrl: imgUrl,
+        });
       }
 
       // 6. Comments with Author & Date
@@ -210,7 +261,7 @@ export async function fetchDcInsideGallery(
       });
 
       // Brief delay to be polite to server
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch {
       // ignore single post error
     }
@@ -229,7 +280,7 @@ function formatPostsToDarkThemeMarkdown(
 ): string {
   const lines: string[] = [
     `# 갤러리 실시간 최신글 리포트: [${galleryId}] (총 ${posts.length}건)`,
-    `*수집 기준: ${new Date().toLocaleString("ko-KR")}*\n`,
+    `*수집 기준: ${new Date().toLocaleString("ko-KR")} (Base64 인라인 이미지 & 다크 테마 적용)*\n`,
     "> 💡 **안내**: 각 게시글의 **[제목]을 클릭**하면 본문과 이미지가 아래로 펼쳐지며, **[댓글]을 클릭**하면 작성자와 실시간 댓글이 추가로 펼쳐집니다.\n",
     "---\n",
   ];
@@ -248,12 +299,12 @@ function formatPostsToDarkThemeMarkdown(
     lines.push(`\n<strong style="color: #38bdf8;">📝 본문 내용</strong>\n`);
     lines.push(`<p style="color: #e2e8f0; margin-top: 6px;">${escapeHtml(post.body)}</p>\n`);
 
-    // Render embedded images if available
+    // Render embedded Base64 images
     if (post.images.length > 0) {
       lines.push(`\n<strong style="color: #38bdf8;">🖼️ 첨부 이미지 (${post.images.length}개)</strong>\n`);
-      post.images.forEach((imgUrl, i) => {
+      post.images.forEach((img, i) => {
         lines.push(
-          `<p><img src="${imgUrl}" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 420px; border-radius: 8px; border: 1px solid #475569; margin: 8px 0;" alt="첨부 이미지 ${i + 1}" /><br/><a href="${imgUrl}" target="_blank" rel="noreferrer" style="font-size: 12px; color: #38bdf8; text-decoration: none;">[🔗 이미지 원본 열기]</a></p>`,
+          `<p><img src="${img.src}" style="max-width: 100%; max-height: 480px; border-radius: 8px; border: 1px solid #475569; margin: 8px 0; display: block;" alt="첨부 이미지 ${i + 1}" /></p>`,
         );
       });
     }
