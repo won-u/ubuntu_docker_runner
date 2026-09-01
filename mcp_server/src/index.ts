@@ -40,6 +40,7 @@ import {
 import { makeRequireAuth, makeTokenValidator, parseTokens } from "./auth.js";
 import { makeOriginGuard, parseList } from "./origin.js";
 import { toToolResult } from "./rules.js";
+import { fetchDcInsideGallery } from "./dcinside.js";
 
 /* -------------------------------------------------------------------------- */
 /* get_coding_standards — the one parameterized tool (not in RULE_TOOLS)      */
@@ -122,6 +123,10 @@ function createRulesServer(): McpServer {
           "get_coding_standards(language)",
           CODING_STANDARDS.whenToCall,
         ),
+        instructionLine(
+          "get_dcinside_gallery_posts(gallery_id, limit)",
+          "the user asks for posts, trends, or reactions from DC Inside galleries. Always present in chat first with collapsible toggles, ask the user if they want to save as an artifact, and save on Yes.",
+        ),
         ...RULE_TOOLS.map((rt) => instructionLine(rt.tool, rt.whenToCall)),
         "A rule's references -- inline (-> foo.md) mentions and its bottom '참조' list -- are provenance and an index, NOT a fetch signal. What decides whether to fetch a rule is that rule's OWN trigger listed above, and nothing else. Never fetch a rule just because another rule mentioned it, or one lookup drags in most of the ruleset.",
         'Example: i18n-l10n.md says "don\'t hardcode timezone assumptions (-> configuration-management.md)". That is NOT a reason to call get_configuration_management -- the instruction is already complete, and the config rule adds nothing to it. Call get_configuration_management when its own trigger fires: you are actually reading config or adding an env var.',
@@ -151,6 +156,41 @@ function createRulesServer(): McpServer {
         `${language} coding standards`,
       );
       return toToolResult(result);
+    },
+  );
+
+  /* --- Tool 2: get_dcinside_gallery_posts -------------------------------- */
+  server.registerTool(
+    "get_dcinside_gallery_posts",
+    {
+      title: "Get DC Inside Gallery Posts",
+      description: [
+        "Fetch the latest posts from a DC Inside gallery (e.g. 'denim', 'fashion_new1') with title, content, images, comment authors, and comments in a dark-theme collapsible markdown accordion format.",
+        "MANDATORY AGENT WORKFLOW PROTOCOL:",
+        "1. Step 1 (Display): Present this collapsible markdown directly in your chat response so the user can interactively unfold titles and comments.",
+        "2. Step 2 (Inquire): Always ask the user: '아티팩트(Artifact)로 저장해서 전체 화면으로 편하게 보시겠습니까? (Yes / No)'.",
+        "3. Step 3 (Save): If the user answers Yes (or affirmative), save the full report into a markdown artifact file (.md) for full-screen viewing.",
+      ].join("\n"),
+      inputSchema: {
+        gallery_id: z
+          .string()
+          .default("denim")
+          .describe(
+            "The DC Inside gallery ID to fetch from (e.g. 'denim', 'fashion_new1', 'travel_japan'). Defaults to 'denim'.",
+          ),
+        limit: z
+          .number()
+          .min(1)
+          .max(30)
+          .default(10)
+          .describe("Number of latest posts to fetch (default: 10, max: 30)."),
+      },
+    },
+    async ({ gallery_id, limit }) => {
+      const markdown = await fetchDcInsideGallery(gallery_id, limit);
+      return {
+        content: [{ type: "text" as const, text: markdown }],
+      };
     },
   );
 

@@ -54,6 +54,7 @@ exec docker run \
   --security-opt apparmor=unconfined \
   "${DOCKER_MOUNTS[@]}" \
   "${DOCKER_ENVS[@]}" \
+  -e GTK_USE_PORTAL=0 \
   "${DOCKER_DEVICES[@]}" \
   --rm \
   "$IMAGE_TAG" firefox --profile "$PROFILE_DIR" "$@"

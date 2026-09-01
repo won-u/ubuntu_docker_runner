@@ -1,0 +1,4 @@
+1.고급 설정 진입:실행된 Firefox의 주소창에 about:config를 입력하고 Enter를 누릅니다."위험을 감수하겠습니다(Accept the Risk and Continue)" 버튼을 클릭합니다.
+2.Portal 설정 검색:상단 검색창에 widget.use-xdg-desktop-portal.file-picker를 복사해서 붙여넣습니다.
+3.값 변경 (0으로 설정):해당 항목의 기본값이 2 (자동 감지) 또는 1 (항상 사용)로 되어 있을 것입니다.이 값을 **0**으로 변경해 줍니다. (0 = Portal 절대 사용 안 함, 내장 GTK 탐색기 사용)
+4.추가 Portal 설정 끄기 (선택):확실한 격리를 위해 검색창에 widget.use-xdg-desktop-portal.mime-handler도 검색한 뒤, 값이 있다면 동일하게 **0**으로 바꿔줍니다.

@@ -59,7 +59,22 @@ if [ ! -f "$KAKAO_EXE" ]; then
     wine $HOME/KakaoSetup.exe
 else
     echo ">> 카카오톡을 실행합니다..."
-    wine "$KAKAO_EXE"
+    # 카카오톡이 기동 시 서버 체크(버전/로그인) 중 네트워크가 불안정하면
+    # 크래시 없이 몇 초 만에 조용히 종료되는 경우가 있어 자동 재시도한다.
+    for attempt in 1 2 3; do
+        start_ts=$SECONDS
+        wine "$KAKAO_EXE"
+        elapsed=$(( SECONDS - start_ts ))
+        if [ "$elapsed" -ge 15 ]; then
+            break
+        fi
+        if [ "$attempt" -lt 3 ]; then
+            echo ">> 카카오톡이 ${elapsed}초 만에 종료됨 (${attempt}/3차 시도) — 재시도합니다..."
+            sleep 2
+        else
+            echo ">> 카카오톡이 계속 짧게 종료됩니다. 네트워크 상태를 확인해주세요."
+        fi
+    done
 fi
 '
 
