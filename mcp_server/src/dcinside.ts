@@ -1,9 +1,8 @@
 /**
- * DC Inside Gallery Scraper Module for MCP Server (Base64 Inline Images & Dark Theme)
- * -----------------------------------------------------------------------------------
- * Fetches latest posts from any DC Inside gallery with title, body, embedded Base64
- * images (to bypass DC Inside 403 hotlink protection), comment authors, and comments
- * in a Dark Theme collapsible Markdown format.
+ * DC Inside Gallery Scraper Module for MCP Server (Base64 Inline Images, Deduplication, & Dark Theme)
+ * ---------------------------------------------------------------------------------------------------
+ * Fetches latest posts from any DC Inside gallery with title, body, deduplicated Base64
+ * embedded images, comment authors, and comments in a Dark Theme collapsible Markdown format.
  */
 
 const USER_AGENT =
@@ -16,7 +15,7 @@ export interface DcComment {
 }
 
 export interface DcImage {
-  src: string; // Base64 data URI or original URL
+  src: string; // Base64 data URI
   originalUrl: string;
 }
 
@@ -157,27 +156,44 @@ export async function fetchDcInsideGallery(
           .trim();
       }
 
-      // 5. Images (Download and convert to Base64 to bypass 403)
-      const rawImageUrls: string[] = [];
-      const ogImgMatch = pHtml.match(
-        /<meta\s+property="og:image"\s+content="([^"]+)"/,
-      );
-      if (ogImgMatch && ogImgMatch[1].includes("viewimage")) {
-        rawImageUrls.push(ogImgMatch[1]);
-      }
-
+      // 5. Images (Deduplicated & Base64 converted)
+      const bodyImageUrls: string[] = [];
       const originalImgRegex = /data-original=["']([^"']+)["']/g;
       let origMatch: RegExpExecArray | null;
       while ((origMatch = originalImgRegex.exec(pHtml)) !== null) {
         const iUrl = origMatch[1].replace(/&amp;/g, "&");
-        if (iUrl.includes("viewimage") && !rawImageUrls.includes(iUrl)) {
-          rawImageUrls.push(iUrl);
+        if (iUrl.includes("viewimage.php")) {
+          bodyImageUrls.push(iUrl);
         }
       }
 
-      // Download up to 3 images per post as Base64
+      // If no viewimage found in body data-original, fallback to og:image
+      const ogImgMatch = pHtml.match(
+        /<meta\s+property="og:image"\s+content="([^"]+)"/,
+      );
+      const ogUrl =
+        ogImgMatch && ogImgMatch[1].includes("viewimage.php")
+          ? ogImgMatch[1].replace(/&amp;/g, "&")
+          : "";
+
+      const rawCandidates = bodyImageUrls.length > 0 ? bodyImageUrls : ogUrl ? [ogUrl] : [];
+
+      // Deduplicate images by hash/parameter key
+      const uniqueImageUrls: string[] = [];
+      const seenImageKeys = new Set<string>();
+
+      for (const imgUrl of rawCandidates) {
+        const noMatch = imgUrl.match(/no=([a-zA-Z0-9]{15,})/);
+        const imageKey = noMatch ? noMatch[1].slice(0, 20) : imgUrl;
+        if (!seenImageKeys.has(imageKey)) {
+          seenImageKeys.add(imageKey);
+          uniqueImageUrls.push(imgUrl);
+        }
+      }
+
+      // Download up to 3 unique images per post as Base64
       const images: DcImage[] = [];
-      for (const imgUrl of rawImageUrls.slice(0, 3)) {
+      for (const imgUrl of uniqueImageUrls.slice(0, 3)) {
         const b64Data = await fetchImageAsBase64(imgUrl);
         images.push({
           src: b64Data,
@@ -280,7 +296,7 @@ function formatPostsToDarkThemeMarkdown(
 ): string {
   const lines: string[] = [
     `# 갤러리 실시간 최신글 리포트: [${galleryId}] (총 ${posts.length}건)`,
-    `*수집 기준: ${new Date().toLocaleString("ko-KR")} (Base64 인라인 이미지 & 다크 테마 적용)*\n`,
+    `*수집 기준: ${new Date().toLocaleString("ko-KR")} (중복 제거 & Base64 인라인 이미지 적용)*\n`,
     "> 💡 **안내**: 각 게시글의 **[제목]을 클릭**하면 본문과 이미지가 아래로 펼쳐지며, **[댓글]을 클릭**하면 작성자와 실시간 댓글이 추가로 펼쳐집니다.\n",
     "---\n",
   ];
