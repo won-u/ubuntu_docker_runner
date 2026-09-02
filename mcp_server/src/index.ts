@@ -125,7 +125,7 @@ function createRulesServer(): McpServer {
         ),
         instructionLine(
           "get_dcinside_gallery_posts(gallery_id, limit)",
-          "the user asks for posts, trends, or reactions from DC Inside galleries. Always present in chat first with collapsible toggles, ask the user if they want to save as an artifact, and save on Yes.",
+          "the user asks for posts, trends, or reactions from DC Inside galleries. Default to publishing the result as an Artifact and sharing the link -- do not dump the full collapsible report into the chat response unless the user explicitly asks to see it inline.",
         ),
         ...RULE_TOOLS.map((rt) => instructionLine(rt.tool, rt.whenToCall)),
         "A rule's references -- inline (-> foo.md) mentions and its bottom '참조' list -- are provenance and an index, NOT a fetch signal. What decides whether to fetch a rule is that rule's OWN trigger listed above, and nothing else. Never fetch a rule just because another rule mentioned it, or one lookup drags in most of the ruleset.",
@@ -167,9 +167,9 @@ function createRulesServer(): McpServer {
       description: [
         "Fetch the latest posts from a DC Inside gallery (e.g. 'denim', 'fashion_new1') with title, content, images, comment authors, and comments in a dark-theme collapsible markdown accordion format.",
         "MANDATORY AGENT WORKFLOW PROTOCOL:",
-        "1. Step 1 (Display): Present this collapsible markdown directly in your chat response so the user can interactively unfold titles and comments.",
-        "2. Step 2 (Inquire): Always ask the user: '아티팩트(Artifact)로 저장해서 전체 화면으로 편하게 보시겠습니까? (Yes / No)'.",
-        "3. Step 3 (Save): If the user answers Yes (or affirmative), save the full report into a markdown artifact file (.md) for full-screen viewing.",
+        "1. Step 1 (Publish): By default, publish the returned report as an Artifact (full-screen, with the collapsible toggles/dark theme intact) and do NOT paste the full report into the chat response.",
+        "2. Step 2 (Summarize): Reply in chat with only a brief summary (gallery, post count) plus the artifact link.",
+        "3. Step 3 (Inline exception): Only render the full collapsible report directly in the chat response if the user explicitly asks to see it inline instead of / in addition to the artifact.",
       ].join("\n"),
       inputSchema: {
         gallery_id: z
